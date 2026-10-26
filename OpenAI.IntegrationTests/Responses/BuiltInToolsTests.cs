@@ -1,3 +1,6 @@
+using System.Text.Json;
+using Betalgo.Ranul.OpenAI.Contracts.Enums.Responses;
+using Betalgo.Ranul.OpenAI.Contracts.Types.ToolChoice;
 using Betalgo.Ranul.OpenAI.Contracts.Requests.Responses;
 using Betalgo.Ranul.OpenAI.Contracts.Types.Content;
 using Betalgo.Ranul.OpenAI.Contracts.Types.Items;
@@ -35,7 +38,7 @@ public class BuiltInToolsTests
     /// <code>
     /// var response = await openAI.Responses.CreateResponse(new CreateResponse
     /// {
-    ///     Model = "gpt-4o-mini",
+    ///     Model = "gpt-6-luna",
     ///     Input = "What are the latest news headlines today?",
     ///     Tools = new List&lt;ITool&gt;
     ///     {
@@ -51,7 +54,7 @@ public class BuiltInToolsTests
     /// var searchCalls = response.Output?.OfType&lt;WebSearchToolCallItem&gt;();
     /// </code>
     /// </example>
-    [LiveFact]
+    [LiveFact("OPENAI_TEST_WEB_SEARCH_MODEL")]
     public async Task CreateResponse_WithWebSearchTool_ReturnsSearchResults()
     {
         // Arrange
@@ -63,26 +66,27 @@ public class BuiltInToolsTests
 
         var request = new CreateResponse
         {
-            Model = _fixture.DefaultModel,
+            Model = _fixture.WebSearchModel,
             Input = "What is the current population of Tokyo? Search the web for the latest data.",
             Tools = new List<ITool> { webSearchTool },
-            MaxOutputTokens = 500 // Web search responses can be longer
+            ToolChoice = ToolChoice.Required,
+            Store = false,
+            MaxOutputTokens = _fixture.DefaultMaxOutputTokens // Web search responses can be longer
         };
 
         // Act
         var response = await _fixture.OpenAI.Responses.CreateResponse(request);
 
         // Assert
-        AssertExtensions.AssertSuccessfulResponse(response);
+        AssertExtensions.AssertCompletedStatus(response);
         Assert.NotNull(response.Output);
         Assert.NotEmpty(response.Output);
 
-        // The output should contain either web search tool calls or a message with search results
-        var hasWebSearchCall = response.Output.OfType<WebSearchToolCallItem>().Any();
-        var hasTextOutput = response.Output.OfType<OutputMessageItem>().Any();
+        var calls = response.Output.OfType<WebSearchToolCallItem>().ToList();
+        Assert.NotEmpty(calls);
+        Assert.Contains(calls, call => call.Status == ItemStatus.Completed);
+        Assert.False(string.IsNullOrWhiteSpace(GetOutputText(response)), "Expected search answer");
 
-        Assert.True(hasWebSearchCall || hasTextOutput,
-            "Expected either web search tool calls or text output with search results");
     }
 
     #endregion
@@ -97,7 +101,7 @@ public class BuiltInToolsTests
     /// <code>
     /// var response = await openAI.Responses.CreateResponse(new CreateResponse
     /// {
-    ///     Model = "gpt-4o-mini",
+    ///     Model = "gpt-6-luna",
     ///     Input = "Calculate the first 10 Fibonacci numbers using Python.",
     ///     Tools = new List&lt;ITool&gt;
     ///     {
@@ -114,49 +118,35 @@ public class BuiltInToolsTests
     /// }
     /// </code>
     /// </example>
-    [LiveFact]
+    [LiveFact("OPENAI_TEST_CODE_INTERPRETER_MODEL")]
     public async Task CreateResponse_WithCodeInterpreterTool_ExecutesPython()
     {
         // Arrange
-        var codeInterpreterTool = new CodeInterpreterTool();
+        var codeInterpreterTool = new CodeInterpreterTool { ContainerConfiguration = JsonSerializer.SerializeToElement(new { type = "auto" }) };
 
         var request = new CreateResponse
         {
-            Model = _fixture.DefaultModel,
+            Model = _fixture.CodeInterpreterModel,
             Input = "Use Python to calculate what 15 factorial (15!) equals. Show the code and result.",
             Tools = new List<ITool> { codeInterpreterTool },
-            MaxOutputTokens = 500
+            ToolChoice = ToolChoice.Required,
+            Store = false,
+            MaxOutputTokens = _fixture.DefaultMaxOutputTokens
         };
 
         // Act
         var response = await _fixture.OpenAI.Responses.CreateResponse(request);
 
         // Assert
-        AssertExtensions.AssertSuccessfulResponse(response);
+        AssertExtensions.AssertCompletedStatus(response);
         Assert.NotNull(response.Output);
         Assert.NotEmpty(response.Output);
 
-        // The output should contain code interpreter results or a final message
-        var hasCodeCall = response.Output.OfType<CodeInterpreterToolCall>().Any();
-        var hasTextOutput = response.Output.OfType<OutputMessageItem>().Any();
+        var codeCall = Assert.Single(response.Output.OfType<CodeInterpreterToolCall>());
+        Assert.Equal(CodeInterpreterCallStatus.Completed, codeCall.Status);
+        Assert.False(string.IsNullOrWhiteSpace(codeCall.Code), "Expected executed code");
+        Assert.Contains("1307674368000", GetOutputText(response).Replace(",", ""));
 
-        Assert.True(hasCodeCall || hasTextOutput,
-            "Expected either code interpreter calls or text output with results");
-
-        // If there's code interpreter output, verify it has code
-        var codeCall = response.Output.OfType<CodeInterpreterToolCall>().FirstOrDefault();
-        if (codeCall != null)
-        {
-            Assert.False(string.IsNullOrWhiteSpace(codeCall.Code),
-                "Expected code interpreter to have executed some code");
-        }
-
-        // The response should mention the factorial result (1307674368000)
-        var outputText = GetOutputText(response);
-        // 15! = 1307674368000
-        Assert.True(
-            outputText.Contains("1307674368000") || outputText.Contains("factorial", StringComparison.OrdinalIgnoreCase),
-            "Expected response to contain factorial calculation");
     }
 
     #endregion

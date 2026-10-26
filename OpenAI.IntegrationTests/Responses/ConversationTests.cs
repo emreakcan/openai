@@ -37,14 +37,14 @@ public class ConversationTests
     /// // First turn
     /// var turn1 = await openAI.Responses.CreateResponse(new CreateResponse
     /// {
-    ///     Model = "gpt-4o-mini",
+    ///     Model = "gpt-6-luna",
     ///     Input = "My name is Alice."
     /// });
     /// 
     /// // Second turn - references the first
     /// var turn2 = await openAI.Responses.CreateResponse(new CreateResponse
     /// {
-    ///     Model = "gpt-4o-mini",
+    ///     Model = "gpt-6-luna",
     ///     Input = "What is my name?",
     ///     PreviousResponseId = turn1.Id  // Links to previous conversation
     /// });
@@ -54,16 +54,17 @@ public class ConversationTests
     [LiveFact]
     public async Task CreateResponse_WithPreviousResponseId_MaintainsContext()
     {
+        await using var cleanup = new StoredResponseScope(_fixture.OpenAI.Responses);
         // Arrange - First turn: introduce a fact
         var turn1Request = new CreateResponse
         {
             Model = _fixture.DefaultModel,
             Input = "Remember this number: 42. Just acknowledge that you've noted it.",
-            MaxOutputTokens = 50,
+            MaxOutputTokens = _fixture.DefaultMaxOutputTokens,
             Store = true
         };
 
-        var turn1 = await _fixture.OpenAI.Responses.CreateResponse(turn1Request);
+        var turn1 = await cleanup.Create(turn1Request);
         AssertExtensions.AssertCompletedStatus(turn1);
 
         // Act - Second turn: ask about the fact
@@ -72,10 +73,10 @@ public class ConversationTests
             Model = _fixture.DefaultModel,
             Input = "What number did I ask you to remember? Reply with just the number.",
             PreviousResponseId = turn1.Id,
-            MaxOutputTokens = 50
+            MaxOutputTokens = _fixture.DefaultMaxOutputTokens
         };
 
-        var turn2 = await _fixture.OpenAI.Responses.CreateResponse(turn2Request);
+        var turn2 = await cleanup.Create(turn2Request);
 
         // Assert
         AssertExtensions.AssertCompletedStatus(turn2);
@@ -85,9 +86,6 @@ public class ConversationTests
         var outputText = GetOutputText(turn2);
         Assert.Contains("42", outputText);
 
-        // Clean up
-        await _fixture.OpenAI.Responses.DeleteResponse(turn1.Id);
-        await _fixture.OpenAI.Responses.DeleteResponse(turn2.Id);
     }
 
     #endregion
@@ -103,20 +101,20 @@ public class ConversationTests
     /// // Build a conversation chain
     /// var turn1 = await openAI.Responses.CreateResponse(new CreateResponse
     /// {
-    ///     Model = "gpt-4o-mini",
+    ///     Model = "gpt-6-luna",
     ///     Input = "I'm planning a trip to Paris."
     /// });
     /// 
     /// var turn2 = await openAI.Responses.CreateResponse(new CreateResponse
     /// {
-    ///     Model = "gpt-4o-mini",
+    ///     Model = "gpt-6-luna",
     ///     Input = "What's a good time to visit?",
     ///     PreviousResponseId = turn1.Id
     /// });
     /// 
     /// var turn3 = await openAI.Responses.CreateResponse(new CreateResponse
     /// {
-    ///     Model = "gpt-4o-mini",
+    ///     Model = "gpt-6-luna",
     ///     Input = "What should I pack?",
     ///     PreviousResponseId = turn2.Id  // Chain continues
     /// });
@@ -125,59 +123,45 @@ public class ConversationTests
     [LiveFact]
     public async Task CreateResponse_MultiTurnConversation_RemembersPriorContext()
     {
-        var responseIds = new List<string>();
+        await using var cleanup = new StoredResponseScope(_fixture.OpenAI.Responses);
 
-        try
+        // Turn 1: Establish context
+        var turn1 = await cleanup.Create(new CreateResponse
         {
-            // Turn 1: Establish context
-            var turn1 = await _fixture.OpenAI.Responses.CreateResponse(new CreateResponse
-            {
-                Model = _fixture.DefaultModel,
-                Input = "I have a pet cat named Whiskers. Just acknowledge this.",
-                MaxOutputTokens = 50,
-                Store = true
-            });
-            AssertExtensions.AssertCompletedStatus(turn1);
-            responseIds.Add(turn1.Id);
+            Model = _fixture.DefaultModel,
+            Input = "I have a pet cat named Whiskers. Just acknowledge this.",
+            MaxOutputTokens = _fixture.DefaultMaxOutputTokens,
+            Store = true
+        });
+        AssertExtensions.AssertCompletedStatus(turn1);
 
-            // Turn 2: Add more context
-            var turn2 = await _fixture.OpenAI.Responses.CreateResponse(new CreateResponse
-            {
-                Model = _fixture.DefaultModel,
-                Input = "Whiskers is 3 years old. Just acknowledge this.",
-                PreviousResponseId = turn1.Id,
-                MaxOutputTokens = 50,
-                Store = true
-            });
-            AssertExtensions.AssertCompletedStatus(turn2);
-            responseIds.Add(turn2.Id);
-
-            // Turn 3: Query the accumulated context
-            var turn3 = await _fixture.OpenAI.Responses.CreateResponse(new CreateResponse
-            {
-                Model = _fixture.DefaultModel,
-                Input = "What is the name and age of my pet? Answer in format: 'Name: X, Age: Y'",
-                PreviousResponseId = turn2.Id,
-                MaxOutputTokens = 50,
-                Store = true
-            });
-            AssertExtensions.AssertCompletedStatus(turn3);
-            responseIds.Add(turn3.Id);
-
-            // Assert - Turn 3 should know both facts from earlier turns
-            var outputText = GetOutputText(turn3);
-            Assert.Contains("Whiskers", outputText, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("3", outputText);
-        }
-        finally
+        // Turn 2: Add more context
+        var turn2 = await cleanup.Create(new CreateResponse
         {
-            // Clean up all responses
-            foreach (var id in responseIds)
-            {
-                try { await _fixture.OpenAI.Responses.DeleteResponse(id); }
-                catch { /* Ignore cleanup errors */ }
-            }
-        }
+            Model = _fixture.DefaultModel,
+            Input = "Whiskers is 3 years old. Just acknowledge this.",
+            PreviousResponseId = turn1.Id,
+            MaxOutputTokens = _fixture.DefaultMaxOutputTokens,
+            Store = true
+        });
+        AssertExtensions.AssertCompletedStatus(turn2);
+
+        // Turn 3: Query the accumulated context
+        var turn3 = await cleanup.Create(new CreateResponse
+        {
+            Model = _fixture.DefaultModel,
+            Input = "What is the name and age of my pet? Answer in format: 'Name: X, Age: Y'",
+            PreviousResponseId = turn2.Id,
+            MaxOutputTokens = _fixture.DefaultMaxOutputTokens,
+            Store = true
+        });
+        AssertExtensions.AssertCompletedStatus(turn3);
+
+        // Assert - Turn 3 should know both facts from earlier turns
+        var outputText = GetOutputText(turn3);
+        Assert.Contains("Whiskers", outputText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("3", outputText);
+
     }
 
     #endregion

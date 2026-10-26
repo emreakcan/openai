@@ -30,7 +30,7 @@ public static class TestModels
                     ["description"] = "The temperature unit to use"
                 }
             },
-            ["required"] = new[] { "location" },
+            ["required"] = new[] { "location", "unit" },
             ["additionalProperties"] = false
         };
 

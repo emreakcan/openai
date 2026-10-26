@@ -9,7 +9,7 @@ using OpenAI.IntegrationTests.Helpers;
 namespace OpenAI.IntegrationTests.Responses;
 
 /// <summary>
-/// Integration tests for reasoning models (o1, o3-mini, etc.) with the Responses API.
+/// Integration tests for reasoning models (explicitly configured reasoning models) with the Responses API.
 /// These tests demonstrate how to use models with advanced reasoning capabilities.
 /// </summary>
 /// <remarks>
@@ -30,13 +30,13 @@ public class ReasoningModelTests
 
     /// <summary>
     /// Demonstrates using a reasoning model for complex problem-solving tasks.
-    /// Reasoning models (like o3-mini) use extended "thinking" to solve difficult problems.
+    /// Reasoning models use extended "thinking" to solve difficult problems.
     /// </summary>
     /// <example>
     /// <code>
     /// var response = await openAI.Responses.CreateResponse(new CreateResponse
     /// {
-    ///     Model = "o3-mini",  // or "o1", "o1-mini", "o1-preview"
+    ///     Model = reasoningModel, // Explicit reviewed capability model
     ///     Input = "Solve: If 3x + 7 = 22, what is x?",
     ///     Reasoning = new ReasoningConfig
     ///     {
@@ -50,42 +50,42 @@ public class ReasoningModelTests
     /// Console.WriteLine($"Reasoning tokens used: {reasoningTokens}");
     /// </code>
     /// </example>
-    [LiveFact]
+    [LiveFact("OPENAI_TEST_REASONING_MODEL")]
     public async Task CreateResponse_WithReasoningModel_ReturnsReasoningTokens()
     {
         // Arrange
         var request = new CreateResponse
         {
-            Model = _fixture.ReasoningModel, // o3-mini or similar
-            Input = "Solve this step by step: A train leaves Station A at 9:00 AM traveling at 60 mph. " +
-                    "Another train leaves Station B (120 miles away) at 10:00 AM traveling toward Station A at 40 mph. " +
-                    "At what time do they meet?",
+            Store = false,
+            Model = _fixture.ReasoningModel,
+            Input = "A train leaves A at 09:00 at 60 mph toward B, 120 miles away. " +
+                    "At 10:00 a train leaves B toward A at 40 mph. Reply only with their meeting time in HH:mm.",
             Reasoning = new ReasoningConfig
             {
                 Effort = ReasoningEffort.Low, // Use low to minimize costs
                 Summary = ReasoningSummary.Auto
             },
-            MaxOutputTokens = 2000 // Reasoning can use many tokens
+            MaxOutputTokens = _fixture.DefaultMaxOutputTokens // Reasoning can use many tokens
         };
 
         // Act
         var response = await _fixture.OpenAI.Responses.CreateResponse(request);
 
         // Assert
-        AssertExtensions.AssertSuccessfulResponse(response);
+        AssertExtensions.AssertCompletedStatus(response);
         Assert.NotNull(response.Usage);
 
         // Reasoning models should report reasoning tokens in the usage details
         // Note: The exact structure depends on the API response format
-        Assert.True(response.Usage.OutputTokens > 0, "Expected output tokens from reasoning");
+        Assert.NotNull(response.Usage.OutputTokensDetails);
+        Assert.True(response.Usage.OutputTokensDetails.ReasoningTokens > 0, "Expected measured reasoning token usage");
 
         // Check for output - should contain the answer
         var outputText = GetOutputText(response);
         Assert.False(string.IsNullOrWhiteSpace(outputText), "Expected reasoning output");
 
-        // The answer should be around 10:48 AM (or mention 1 hour 48 minutes)
-        // But we just verify we got a response since exact format may vary
-        Assert.True(outputText.Length > 50, "Expected detailed reasoning response");
+        Assert.Contains("10:36", outputText);
+
     }
 
     #endregion

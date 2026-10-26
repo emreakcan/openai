@@ -74,6 +74,19 @@ public class FixtureConfigurationTests
         Assert.Equal(512, fixture.DefaultMaxOutputTokens);
     }
 
+    [Fact]
+    public void LegacyModelSettingsCannotSilentlySelectAnUnreviewedPaidModel()
+    {
+        using var fixture = new OpenAITestFixture(Configuration(
+            ("OPENAI_API_KEY", "offline-key"),
+            ("OpenAI:DefaultModel", "unreviewed-legacy-default"),
+            ("OpenAI:ReasoningModel", "unreviewed-legacy-reasoning")), new CapturingHandler());
+        Assert.Equal("gpt-6-luna", fixture.DefaultModel);
+        Assert.Throws<InvalidOperationException>(() => fixture.ReasoningModel);
+        Assert.Throws<InvalidOperationException>(() => fixture.WebSearchModel);
+        Assert.Throws<InvalidOperationException>(() => fixture.CodeInterpreterModel);
+    }
+
     [Theory]
     [InlineData("0")]
     [InlineData("4097")]

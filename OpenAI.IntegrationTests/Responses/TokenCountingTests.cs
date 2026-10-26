@@ -36,7 +36,7 @@ public class TokenCountingTests
     /// <code>
     /// var tokenCount = await openAI.Responses.CountInputTokens(new TokenCountsRequest
     /// {
-    ///     Model = "gpt-4o-mini",
+    ///     Model = "gpt-6-luna",
     ///     Input = "What is the capital of France?"
     /// });
     /// 

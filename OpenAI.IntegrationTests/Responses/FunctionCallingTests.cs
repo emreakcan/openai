@@ -1,3 +1,4 @@
+using Betalgo.Ranul.OpenAI.Contracts.Types.ToolChoice;
 using Betalgo.Ranul.OpenAI.Contracts.Enums.Responses;
 using Betalgo.Ranul.OpenAI.Contracts.Requests.Responses;
 using Betalgo.Ranul.OpenAI.Contracts.Types;
@@ -36,7 +37,7 @@ public class FunctionCallingTests
     /// <code>
     /// var response = await openAI.Responses.CreateResponse(new CreateResponse
     /// {
-    ///     Model = "gpt-4o-mini",
+    ///     Model = "gpt-6-luna",
     ///     Input = "What's the weather in San Francisco?",
     ///     Tools = new List&lt;ITool&gt;
     ///     {
@@ -69,6 +70,7 @@ public class FunctionCallingTests
     [LiveFact]
     public async Task CreateResponse_WithFunctionTool_ReturnsToolCall()
     {
+        await using var cleanup = new StoredResponseScope(_fixture.OpenAI.Responses);
         // Arrange
         var weatherTool = new FunctionTool
         {
@@ -83,11 +85,12 @@ public class FunctionCallingTests
             Model = _fixture.DefaultModel,
             Input = TestModels.Prompts.WeatherQuestion,
             Tools = new List<ITool> { weatherTool },
-            MaxOutputTokens = 200
+            ToolChoice = ToolChoice.Required,
+            MaxOutputTokens = _fixture.DefaultMaxOutputTokens
         };
 
         // Act
-        var response = await _fixture.OpenAI.Responses.CreateResponse(request);
+        var response = await cleanup.Create(request);
 
         // Assert
         AssertExtensions.AssertSuccessfulResponse(response);
@@ -122,7 +125,7 @@ public class FunctionCallingTests
     /// // Step 1: Initial request with function
     /// var response1 = await openAI.Responses.CreateResponse(new CreateResponse
     /// {
-    ///     Model = "gpt-4o-mini",
+    ///     Model = "gpt-6-luna",
     ///     Input = "What's the weather in Tokyo?",
     ///     Tools = new List&lt;ITool&gt; { weatherTool }
     /// });
@@ -133,7 +136,7 @@ public class FunctionCallingTests
     /// // Step 3: Execute your function and provide the result
     /// var response2 = await openAI.Responses.CreateResponse(new CreateResponse
     /// {
-    ///     Model = "gpt-4o-mini",
+    ///     Model = "gpt-6-luna",
     ///     PreviousResponseId = response1.Id,
     ///     Input = new InputParam(new List&lt;IInputItem&gt;
     ///     {
@@ -150,6 +153,7 @@ public class FunctionCallingTests
     [LiveFact]
     public async Task CreateResponse_WithFunctionOutput_ProcessesResult()
     {
+        await using var cleanup = new StoredResponseScope(_fixture.OpenAI.Responses);
         // Arrange - Create the function tool
         var weatherTool = new FunctionTool
         {
@@ -165,11 +169,12 @@ public class FunctionCallingTests
             Model = _fixture.DefaultModel,
             Input = "What's the weather like in Tokyo right now?",
             Tools = new List<ITool> { weatherTool },
-            MaxOutputTokens = 200,
+            ToolChoice = ToolChoice.Required,
+            MaxOutputTokens = _fixture.DefaultMaxOutputTokens,
             Store = true
         };
 
-        var response1 = await _fixture.OpenAI.Responses.CreateResponse(request1);
+        var response1 = await cleanup.Create(request1);
         AssertExtensions.AssertSuccessfulResponse(response1);
 
         // Get the function call
@@ -190,11 +195,12 @@ public class FunctionCallingTests
             PreviousResponseId = response1.Id,
             Input = new InputParam(new List<IInputItem> { functionOutput }),
             Tools = new List<ITool> { weatherTool },
-            MaxOutputTokens = 200,
+            ToolChoice = ToolChoice.None,
+            MaxOutputTokens = _fixture.DefaultMaxOutputTokens,
             Store = true
         };
 
-        var response2 = await _fixture.OpenAI.Responses.CreateResponse(request2);
+        var response2 = await cleanup.Create(request2);
 
         // Assert
         AssertExtensions.AssertCompletedStatus(response2);
@@ -203,13 +209,6 @@ public class FunctionCallingTests
         var hasTextOutput = response2.Output?.OfType<OutputMessageItem>().Any() ?? false;
         Assert.True(hasTextOutput, "Expected a text response after function output");
 
-        // Clean up
-        try
-        {
-            await _fixture.OpenAI.Responses.DeleteResponse(response1.Id);
-            await _fixture.OpenAI.Responses.DeleteResponse(response2.Id);
-        }
-        catch { /* Ignore cleanup errors */ }
     }
 
     #endregion

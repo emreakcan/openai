@@ -38,6 +38,7 @@ public class StreamingBasicTests
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
         var request = new CreateResponse
         {
+            Store = false,
             Model = _fixture.DefaultModel,
             MaxOutputTokens = _fixture.DefaultMaxOutputTokens,
             Input = "Say hello in exactly 3 words."
@@ -67,6 +68,7 @@ public class StreamingBasicTests
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
         var request = new CreateResponse
         {
+            Store = false,
             Model = _fixture.DefaultModel,
             MaxOutputTokens = _fixture.DefaultMaxOutputTokens,
             Input = "Count from 1 to 3."
@@ -113,6 +115,7 @@ public class StreamingBasicTests
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
         var request = new CreateResponse
         {
+            Store = false,
             Model = _fixture.DefaultModel,
             MaxOutputTokens = _fixture.DefaultMaxOutputTokens,
             Input = "Say 'Hello, World!' exactly."
@@ -137,6 +140,7 @@ public class StreamingBasicTests
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
         var request = new CreateResponse
         {
+            Store = false,
             Model = _fixture.DefaultModel,
             MaxOutputTokens = _fixture.DefaultMaxOutputTokens,
             Input = "Say 'Test' exactly."
@@ -163,6 +167,7 @@ public class StreamingBasicTests
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
         var request = new CreateResponse
         {
+            Store = false,
             Model = _fixture.DefaultModel,
             MaxOutputTokens = _fixture.DefaultMaxOutputTokens,
             Input = "Count: 1, 2, 3."
@@ -197,6 +202,7 @@ public class StreamingBasicTests
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
         var request = new CreateResponse
         {
+            Store = false,
             Model = _fixture.DefaultModel,
             MaxOutputTokens = _fixture.DefaultMaxOutputTokens,
             Input = "Say 'Streaming works!' exactly."
@@ -226,6 +232,7 @@ public class StreamingBasicTests
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
         var request = new CreateResponse
         {
+            Store = false,
             Model = _fixture.DefaultModel,
             MaxOutputTokens = _fixture.DefaultMaxOutputTokens,
             Input = "Say 'Done' exactly."
@@ -259,6 +266,7 @@ public class StreamingBasicTests
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
         var request = new CreateResponse
         {
+            Store = false,
             Model = _fixture.DefaultModel,
             MaxOutputTokens = _fixture.DefaultMaxOutputTokens,
             Input = "Say 'Filtered!' exactly."
@@ -289,6 +297,7 @@ public class StreamingBasicTests
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
         var request = new CreateResponse
         {
+            Store = false,
             Model = _fixture.DefaultModel,
             MaxOutputTokens = _fixture.DefaultMaxOutputTokens,
             Input = "Say 'Typed!' exactly."
@@ -321,6 +330,7 @@ public class StreamingBasicTests
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
         var request = new CreateResponse
         {
+            Store = false,
             Model = _fixture.DefaultModel,
             MaxOutputTokens = _fixture.DefaultMaxOutputTokens,
             Input = "Say 'Lifecycle!' exactly."

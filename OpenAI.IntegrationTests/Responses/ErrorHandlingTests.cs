@@ -54,6 +54,7 @@ public class ErrorHandlingTests
         // Arrange
         var request = new CreateResponse
         {
+            Store = false,
             Model = "this-model-does-not-exist-12345",
             Input = "Hello"
         };

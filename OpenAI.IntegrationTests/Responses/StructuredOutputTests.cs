@@ -36,7 +36,7 @@ public class StructuredOutputTests
     /// <code>
     /// var response = await openAI.Responses.CreateResponse(new CreateResponse
     /// {
-    ///     Model = "gpt-4o-mini",
+    ///     Model = "gpt-6-luna",
     ///     Input = "Create a person named John, age 30, software engineer.",
     ///     Text = new TextConfig
     ///     {
@@ -65,6 +65,7 @@ public class StructuredOutputTests
         // Arrange
         var request = new CreateResponse
         {
+            Store = false,
             Model = _fixture.DefaultModel,
             Input = TestModels.Prompts.PersonDescription,
             Text = new TextConfig
@@ -74,7 +75,7 @@ public class StructuredOutputTests
                     TestModels.PersonSchema.Schema,
                     strict: true)
             },
-            MaxOutputTokens = 200
+            MaxOutputTokens = _fixture.DefaultMaxOutputTokens
         };
 
         // Act

@@ -41,8 +41,10 @@ public class OpenAITestFixture : IDisposable
                 "dotnet user-secrets set OpenAIServiceOptions:ApiKey <key> --project OpenAI.IntegrationTests.");
         }
 
-        DefaultModel = FirstNonempty(configuration["OPENAI_TEST_MODEL"], configuration["OpenAI:DefaultModel"]) ?? "gpt-4o-mini";
-        ReasoningModel = FirstNonempty(configuration["OPENAI_TEST_REASONING_MODEL"], configuration["OpenAI:ReasoningModel"]) ?? "o3-mini";
+        DefaultModel = FirstNonempty(configuration["OPENAI_TEST_MODEL"]) ?? "gpt-6-luna";
+        _reasoningModel = FirstNonempty(configuration["OPENAI_TEST_REASONING_MODEL"]);
+        _webSearchModel = FirstNonempty(configuration["OPENAI_TEST_WEB_SEARCH_MODEL"]);
+        _codeInterpreterModel = FirstNonempty(configuration["OPENAI_TEST_CODE_INTERPRETER_MODEL"]);
         var maxOutputTokens = configuration["OPENAI_TEST_MAX_OUTPUT_TOKENS"] ?? "256";
         if (!int.TryParse(maxOutputTokens, out var limit) || limit < 1 || limit > 4096)
         {
@@ -92,14 +94,22 @@ public class OpenAITestFixture : IDisposable
     public IOpenAIService OpenAI { get; }
 
     /// <summary>
-    /// The default model to use for tests (cost-effective).
+    /// The reviewed core model; optional overrides require review before a paid run.
     /// </summary>
     public string DefaultModel { get; }
 
     /// <summary>
     /// The reasoning model to use for reasoning tests.
     /// </summary>
-    public string ReasoningModel { get; }
+    private readonly string? _reasoningModel;
+    private readonly string? _webSearchModel;
+    private readonly string? _codeInterpreterModel;
+    public string ReasoningModel => RequireCapabilityModel(_reasoningModel, "OPENAI_TEST_REASONING_MODEL");
+    public string WebSearchModel => RequireCapabilityModel(_webSearchModel, "OPENAI_TEST_WEB_SEARCH_MODEL");
+    public string CodeInterpreterModel => RequireCapabilityModel(_codeInterpreterModel, "OPENAI_TEST_CODE_INTERPRETER_MODEL");
+
+    private static string RequireCapabilityModel(string? value, string setting) => value ??
+        throw new InvalidOperationException($"Set {setting} to an explicitly reviewed capability model ID.");
 
     /// <summary>
     /// Output cap used by streaming tests that previously had no explicit token limit.

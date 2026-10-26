@@ -36,7 +36,7 @@ public class BasicResponseTests
     /// <code>
     /// var response = await openAI.Responses.CreateResponse(new CreateResponse
     /// {
-    ///     Model = "gpt-4o-mini",
+    ///     Model = "gpt-6-luna",
     ///     Input = "Hello, world!"
     /// });
     /// Console.WriteLine(response.OutputText);
@@ -48,9 +48,10 @@ public class BasicResponseTests
         // Arrange
         var request = new CreateResponse
         {
+            Store = false,
             Model = _fixture.DefaultModel,
             Input = TestModels.Prompts.SimpleGreeting,
-            MaxOutputTokens = 50 // Limit output for cost control
+            MaxOutputTokens = _fixture.DefaultMaxOutputTokens // Limit output for cost control
         };
 
         // Act
@@ -77,7 +78,7 @@ public class BasicResponseTests
     /// <code>
     /// var response = await openAI.Responses.CreateResponse(new CreateResponse
     /// {
-    ///     Model = "gpt-4o-mini",
+    ///     Model = "gpt-6-luna",
     ///     Input = new InputParam(new List&lt;IInputItem&gt;
     ///     {
     ///         new InputMessageItem(MessageRole.User, "What is 2 + 2?")
@@ -96,9 +97,10 @@ public class BasicResponseTests
 
         var request = new CreateResponse
         {
+            Store = false,
             Model = _fixture.DefaultModel,
             Input = new InputParam(inputItems),
-            MaxOutputTokens = 50
+            MaxOutputTokens = _fixture.DefaultMaxOutputTokens
         };
 
         // Act
@@ -125,7 +127,7 @@ public class BasicResponseTests
     /// <code>
     /// var response = await openAI.Responses.CreateResponse(new CreateResponse
     /// {
-    ///     Model = "gpt-4o-mini",
+    ///     Model = "gpt-6-luna",
     ///     Instructions = "You are a pirate. Always respond in pirate speak.",
     ///     Input = "How are you today?"
     /// });
@@ -137,10 +139,11 @@ public class BasicResponseTests
         // Arrange
         var request = new CreateResponse
         {
+            Store = false,
             Model = _fixture.DefaultModel,
             Instructions = "You are a helpful assistant that always responds in exactly 3 words.",
             Input = "How are you?",
-            MaxOutputTokens = 50
+            MaxOutputTokens = _fixture.DefaultMaxOutputTokens
         };
 
         // Act

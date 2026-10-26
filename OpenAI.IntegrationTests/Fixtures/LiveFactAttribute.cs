@@ -9,11 +9,15 @@ public sealed class LiveFactAttribute : FactAttribute
 
     internal static bool IsOptedIn(string? value) => string.Equals(value, "1", StringComparison.Ordinal);
 
-    public LiveFactAttribute()
+    public LiveFactAttribute(string? modelEnvironmentVariable = null)
     {
         if (!IsEnabled)
         {
             Skip = "Live API tests require OPENAI_RUN_LIVE_TESTS=1 and a configured API key.";
+        }
+        else if (modelEnvironmentVariable != null && string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(modelEnvironmentVariable)))
+        {
+            Skip = $"This paid capability test additionally requires an explicitly reviewed {modelEnvironmentVariable} model ID.";
         }
     }
 }

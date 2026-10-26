@@ -35,7 +35,7 @@ public class CrudOperationsTests
     /// // First, create a response
     /// var created = await openAI.Responses.CreateResponse(new CreateResponse
     /// {
-    ///     Model = "gpt-4o-mini",
+    ///     Model = "gpt-6-luna",
     ///     Input = "Hello!"
     /// });
     /// 
@@ -47,16 +47,17 @@ public class CrudOperationsTests
     [LiveFact]
     public async Task RetrieveResponse_WithValidId_ReturnsResponse()
     {
+        await using var cleanup = new StoredResponseScope(_fixture.OpenAI.Responses);
         // Arrange - First create a response to retrieve
         var createRequest = new CreateResponse
         {
             Model = _fixture.DefaultModel,
             Input = "Say 'test' and nothing else.",
-            MaxOutputTokens = 20,
+            MaxOutputTokens = _fixture.DefaultMaxOutputTokens,
             Store = true // Ensure the response is stored for retrieval
         };
 
-        var created = await _fixture.OpenAI.Responses.CreateResponse(createRequest);
+        var created = await cleanup.Create(createRequest);
         AssertExtensions.AssertSuccessfulResponse(created);
 
         // Act - Retrieve the response by ID
@@ -81,7 +82,7 @@ public class CrudOperationsTests
     /// // Create a response
     /// var response = await openAI.Responses.CreateResponse(new CreateResponse
     /// {
-    ///     Model = "gpt-4o-mini",
+    ///     Model = "gpt-6-luna",
     ///     Input = "Hello!"
     /// });
     /// 
@@ -93,16 +94,17 @@ public class CrudOperationsTests
     [LiveFact]
     public async Task DeleteResponse_WithValidId_DeletesSuccessfully()
     {
+        await using var cleanup = new StoredResponseScope(_fixture.OpenAI.Responses);
         // Arrange - First create a response to delete
         var createRequest = new CreateResponse
         {
             Model = _fixture.DefaultModel,
             Input = "Say 'delete me' and nothing else.",
-            MaxOutputTokens = 20,
+            MaxOutputTokens = _fixture.DefaultMaxOutputTokens,
             Store = true
         };
 
-        var created = await _fixture.OpenAI.Responses.CreateResponse(createRequest);
+        var created = await cleanup.Create(createRequest);
         AssertExtensions.AssertSuccessfulResponse(created);
 
         // Act - Delete the response
@@ -111,6 +113,7 @@ public class CrudOperationsTests
         // Assert
         AssertExtensions.AssertDeleted(deleteResult);
         Assert.Equal(created.Id, deleteResult.Id);
+        cleanup.Forget(created.Id);
     }
 
     #endregion
@@ -126,7 +129,7 @@ public class CrudOperationsTests
     /// // Create a response
     /// var response = await openAI.Responses.CreateResponse(new CreateResponse
     /// {
-    ///     Model = "gpt-4o-mini",
+    ///     Model = "gpt-6-luna",
     ///     Input = "Hello, how are you?"
     /// });
     /// 
@@ -141,16 +144,17 @@ public class CrudOperationsTests
     [LiveFact]
     public async Task ListInputItems_WithValidResponseId_ReturnsItems()
     {
+        await using var cleanup = new StoredResponseScope(_fixture.OpenAI.Responses);
         // Arrange - Create a response first
         var createRequest = new CreateResponse
         {
             Model = _fixture.DefaultModel,
             Input = "What is the capital of France?",
-            MaxOutputTokens = 50,
+            MaxOutputTokens = _fixture.DefaultMaxOutputTokens,
             Store = true
         };
 
-        var created = await _fixture.OpenAI.Responses.CreateResponse(createRequest);
+        var created = await cleanup.Create(createRequest);
         AssertExtensions.AssertSuccessfulResponse(created);
 
         // Act - List input items
@@ -161,11 +165,6 @@ public class CrudOperationsTests
         Assert.NotNull(inputItems.Data);
         Assert.NotEmpty(inputItems.Data);
 
-        // The response should indicate if there are more items (pagination)
-        // HasMore is a boolean value, so we just verify it was set
-
-        // Clean up
-        await _fixture.OpenAI.Responses.DeleteResponse(created.Id);
     }
 
     #endregion
