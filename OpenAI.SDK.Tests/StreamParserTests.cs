@@ -50,6 +50,13 @@ data: [DONE]
     }
 
     [Fact]
+    public async Task ParseSseStreamAsyncRejectsNullEventPayload()
+    {
+        using var response = CreateEventStreamResponse("data: null\n\n");
+        await Should.ThrowAsync<JsonException>(() => ToListAsync(response.ParseSseStreamAsync<IResponseStreamEvent>()));
+    }
+
+    [Fact]
     public async Task ParseSseStreamAsyncPreservesUnknownFutureEvents()
     {
         using var response = CreateEventStreamResponse("data: {\"type\":\"response.future_event\",\"sequence_number\":8,\"new_field\":\"value\"}\n\n");

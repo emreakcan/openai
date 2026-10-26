@@ -150,6 +150,10 @@ public static class StreamParser
         // can turn a corrupted response into apparently successful partial output.
         evt = JsonSerializer.Deserialize<TEvent>(data, options);
 
-        return evt != null;
+        if (evt is null)
+        {
+            throw new JsonException("An event payload must contain an event object, not null.");
+        }
+        return true;
     }
 }
