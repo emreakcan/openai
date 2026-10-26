@@ -566,8 +566,16 @@ public static class FunctionCallingHelper
     private static void NormalizeStrictSchema(JsonNode? schema)
     {
         if (schema is not JsonObject obj) return;
-        if (obj["properties"] is JsonObject properties)
+        var properties = obj["properties"] as JsonObject;
+        var isObject = properties != null || obj["type"]?.ToString() == "object" ||
+            obj["type"] is JsonArray types && types.Any(t => t?.ToString() == "object");
+        if (isObject)
         {
+            if (properties == null)
+            {
+                properties = new JsonObject();
+                obj["properties"] = properties;
+            }
             obj["additionalProperties"] = false;
             var required = new JsonArray();
             foreach (var property in properties)

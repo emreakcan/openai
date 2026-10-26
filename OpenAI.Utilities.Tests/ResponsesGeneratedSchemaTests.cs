@@ -54,6 +54,15 @@ public class ResponsesGeneratedSchemaTests
         JsonElement.DeepEquals(expected.RootElement, supplied).ShouldBeTrue();
     }
 
+    [Fact]
+    public async Task EmptyNet9ParameterObjectIsStillClosedInStrictMode()
+    {
+        var schema = await CaptureParameters(FunctionCallingHelper.CreateFunctionToolFromTypeNet9<EmptyParameters>("ping"));
+        schema.GetProperty("type").GetString().ShouldBe("object");
+        schema.GetProperty("additionalProperties").GetBoolean().ShouldBeFalse();
+        schema.GetProperty("required").GetArrayLength().ShouldBe(0);
+    }
+
     private static void AssertStrictObject(JsonElement schema)
     {
         if (schema.ValueKind == JsonValueKind.Array) { foreach (var node in schema.EnumerateArray()) AssertStrictObject(node); return; }
@@ -78,6 +87,7 @@ public class ResponsesGeneratedSchemaTests
     }
     private sealed class Handler(Func<HttpRequestMessage, Task<HttpResponseMessage>> send) : HttpMessageHandler
     { protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => send(request); }
+    public class EmptyParameters { }
     public class Parameters { public string City { get; set; } = ""; public int Count { get; set; } public List<Child> Children { get; set; } = []; }
     public class Child { public string Label { get; set; } = ""; public int Count { get; set; } }
 }
