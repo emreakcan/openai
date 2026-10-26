@@ -1,6 +1,8 @@
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using Betalgo.Ranul.OpenAI.Contracts.Types.Streaming;
+using Betalgo.Ranul.OpenAI.Contracts.Types.Streaming.Events;
 using Betalgo.Ranul.OpenAI.Contracts.Types.Streaming.Events.Text;
 using Betalgo.Ranul.OpenAI.Extensions.Streaming;
 using Shouldly;
@@ -32,7 +34,7 @@ data: {"type":"response.output_text.delta","sequence_number":2,"item_id":"item_2
     }
 
     [Fact]
-    public async Task ParseSseStreamAsyncSkipsMalformedEventsWithoutConsumingSubsequentBlocks()
+    public async Task ParseSseStreamAsyncDoesNotSilentlyDiscardMalformedEvents()
     {
         using var response = CreateEventStreamResponse("""
 data: {"type":"response.output_text.delta","sequence_number":1,
@@ -44,12 +46,39 @@ data: [DONE]
 
 """);
 
-        var events = await ToListAsync(response.ParseSseStreamAsync<IResponseStreamEvent>());
+        await Should.ThrowAsync<JsonException>(() => ToListAsync(response.ParseSseStreamAsync<IResponseStreamEvent>()));
+    }
 
-        events.Count.ShouldBe(1);
-        var delta = events[0].ShouldBeOfType<ResponseTextDeltaEvent>();
-        delta.Delta.ShouldBe("Recovered");
-        delta.SequenceNumber.ShouldBe(2);
+    [Fact]
+    public async Task ParseSseStreamAsyncPreservesUnknownFutureEvents()
+    {
+        using var response = CreateEventStreamResponse("data: {\"type\":\"response.future_event\",\"sequence_number\":8,\"new_field\":\"value\"}\n\n");
+        var events = await ToListAsync(response.ParseSseStreamAsync<IResponseStreamEvent>());
+        var unknown = events.Single().ShouldBeOfType<UnknownResponseStreamEvent>();
+        unknown.Type.ShouldBe("response.future_event");
+        unknown.SequenceNumber.ShouldBe(8);
+        using var json = JsonDocument.Parse(unknown.RawJson);
+        json.RootElement.GetProperty("new_field").GetString().ShouldBe("value");
+    }
+
+    [Fact]
+    public async Task ParseSseStreamAsyncReadsFinalCompleteJsonWithoutTrailingBlankLine()
+    {
+        using var response = CreateEventStreamResponse("data: {\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"item_1\",\"output_index\":0,\"content_index\":0,\"delta\":\"Last\"}");
+        var events = await ToListAsync(response.ParseSseStreamAsync<IResponseStreamEvent>());
+        events.Single().ShouldBeOfType<ResponseTextDeltaEvent>().Delta.ShouldBe("Last");
+    }
+
+    [Fact]
+    public async Task ParseSseStreamAsyncObservesCancellationWhileReadIsPending()
+    {
+        var stream = new BlockingReadStream();
+        using var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(stream) };
+        using var cancellation = new CancellationTokenSource();
+        var reading = ToListAsync(response.ParseSseStreamAsync<IResponseStreamEvent>(cancellationToken: cancellation.Token));
+        await stream.ReadStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        cancellation.Cancel();
+        await Should.ThrowAsync<OperationCanceledException>(() => reading.WaitAsync(TimeSpan.FromSeconds(5)));
     }
 
     private static HttpResponseMessage CreateEventStreamResponse(string payload)
@@ -69,5 +98,26 @@ data: [DONE]
         }
 
         return results;
+    }
+
+    private sealed class BlockingReadStream : Stream
+    {
+        public TaskCompletionSource<bool> ReadStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        {
+            ReadStarted.TrySetResult(true);
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return 0;
+        }
+        public override void Flush() => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 }

@@ -81,6 +81,8 @@ public class OpenAIResponsesServiceTests
             return EventStreamResponse("""
 data: {"type":"response.output_text.delta","sequence_number":1,"item_id":"item_1","output_index":0,"content_index":0,"delta":"hello"}
 
+data: {"type":"response.completed","sequence_number":2,"response":{"id":"resp_123","status":"completed"}}
+
 data: [DONE]
 
 """);
@@ -95,7 +97,7 @@ data: [DONE]
             events.Add(evt);
         }
 
-        events.Count.ShouldBe(1);
+        events.Count.ShouldBe(2);
         GetJsonProperty(requestBody!, "model").ShouldBe(Models.Gpt_4o);
         GetJsonProperty(requestBody!, "stream").ShouldBe("True");
     }

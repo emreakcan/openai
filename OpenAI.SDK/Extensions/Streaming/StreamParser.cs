@@ -29,6 +29,11 @@ public static class StreamParser
 #else
         using var stream = await response.Content.ReadAsStreamAsync();
 #endif
+#if !NET7_0_OR_GREATER
+        // Older StreamReader APIs cannot cancel a pending read. Disposing the owned
+        // response stream interrupts it instead of leaving an abandoned read running.
+        using var cancellationRegistration = cancellationToken.Register(() => stream.Dispose());
+#endif
         using var reader = new StreamReader(stream);
         var dataLines = new List<string>();
 
@@ -39,7 +44,17 @@ public static class StreamParser
 #if NET7_0_OR_GREATER
             var line = await reader.ReadLineAsync(cancellationToken);
 #else
-            var line = await reader.ReadLineAsync();
+            string? line;
+            try
+            {
+                line = await reader.ReadLineAsync();
+            }
+            catch (Exception exception) when (cancellationToken.IsCancellationRequested &&
+                                              (exception is IOException || exception is ObjectDisposedException))
+            {
+                throw new OperationCanceledException("The event stream read was canceled.", exception, cancellationToken);
+            }
+            cancellationToken.ThrowIfCancellationRequested();
 #endif
 
             if (line == null)
@@ -131,14 +146,9 @@ public static class StreamParser
             return false;
         }
 
-        try
-        {
-            evt = JsonSerializer.Deserialize<TEvent>(data, options);
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
+        // Malformed payloads must surface to the caller: silently skipping one
+        // can turn a corrupted response into apparently successful partial output.
+        evt = JsonSerializer.Deserialize<TEvent>(data, options);
 
         return evt != null;
     }

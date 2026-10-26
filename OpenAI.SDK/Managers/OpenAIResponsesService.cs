@@ -1,4 +1,6 @@
 using System.Runtime.CompilerServices;
+using System.Text.Json;
+using Betalgo.Ranul.OpenAI.Contracts.Types.Streaming.Events.Lifecycle;
 using Betalgo.Ranul.OpenAI.Contracts.Requests.Responses;
 using Betalgo.Ranul.OpenAI.Contracts.Responses.Responses;
 using Betalgo.Ranul.OpenAI.Contracts.Types.Streaming;
@@ -109,7 +111,7 @@ public partial class OpenAIService : IResponsesService
             throw new HttpRequestException($"Request failed with status code {response.StatusCode}: {errorContent}");
         }
 
-        await foreach (var evt in response.ParseSseStreamAsync<IResponseStreamEvent>(cancellationToken: cancellationToken))
+        await foreach (var evt in ReadResponsesStreamAsync(response, requireTerminalEvent: true, cancellationToken))
         {
             yield return evt;
         }
@@ -141,10 +143,39 @@ public partial class OpenAIService : IResponsesService
             throw new HttpRequestException($"Request failed with status code {response.StatusCode}: {errorContent}");
         }
 
-        await foreach (var evt in response.ParseSseStreamAsync<IResponseStreamEvent>(cancellationToken: cancellationToken))
+        await foreach (var evt in ReadResponsesStreamAsync(response, requireTerminalEvent: request?.StartingAfter == null, cancellationToken))
         {
             yield return evt;
         }
     }
+    private static async IAsyncEnumerable<IResponseStreamEvent> ReadResponsesStreamAsync(
+        HttpResponseMessage response, bool requireTerminalEvent,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var receivedTerminalEvent = false;
+        await foreach (var evt in response.ParseSseStreamAsync<IResponseStreamEvent>(cancellationToken: cancellationToken))
+        {
+            switch (evt)
+            {
+                case ResponseCompletedEvent completed when completed.Response == null:
+                case ResponseFailedEvent failed when failed.Response == null:
+                case ResponseIncompleteEvent incomplete when incomplete.Response == null:
+                    throw new JsonException("A terminal response event must contain its response object.");
+                case ResponseCompletedEvent:
+                case ResponseFailedEvent:
+                case ResponseIncompleteEvent:
+                case ResponseErrorEvent:
+                    receivedTerminalEvent = true;
+                    break;
+            }
+            yield return evt;
+        }
+
+        if (requireTerminalEvent && !receivedTerminalEvent)
+        {
+            throw new EndOfStreamException("The response stream ended before a terminal response event was received.");
+        }
+    }
+
 }
 
