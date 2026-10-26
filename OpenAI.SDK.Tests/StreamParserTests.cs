@@ -102,6 +102,7 @@ data: [DONE]
 
     private sealed class BlockingReadStream : Stream
     {
+        private readonly CancellationTokenSource _disposed = new();
         public TaskCompletionSource<bool> ReadStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public override bool CanRead => true;
         public override bool CanSeek => false;
@@ -112,8 +113,14 @@ data: [DONE]
         public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
             ReadStarted.TrySetResult(true);
-            await Task.Delay(Timeout.Infinite, cancellationToken);
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _disposed.Token);
+            await Task.Delay(Timeout.Infinite, linked.Token);
             return 0;
+        }
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) _disposed.Cancel();
+            base.Dispose(disposing);
         }
         public override void Flush() => throw new NotSupportedException();
         public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();

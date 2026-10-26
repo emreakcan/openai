@@ -43,7 +43,9 @@ jobs:
         run: dotnet build OpenAI.sln --configuration Release --no-restore
 
       - name: Run offline tests
-        run: dotnet test OpenAI.Utilities.Tests/OpenAI.Utilities.Tests.csproj --configuration Release --no-build --no-restore --logger trx --results-directory TestResults
+        env:
+          OPENAI_RUN_LIVE_TESTS: "0"
+        run: dotnet test OpenAI.sln --configuration Release --no-build --no-restore --logger trx --results-directory TestResults
 
       - name: Upload test results
         if: always()

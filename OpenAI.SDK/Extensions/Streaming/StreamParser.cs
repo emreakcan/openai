@@ -50,7 +50,7 @@ public static class StreamParser
                 line = await reader.ReadLineAsync();
             }
             catch (Exception exception) when (cancellationToken.IsCancellationRequested &&
-                                              (exception is IOException || exception is ObjectDisposedException))
+                                              (exception is IOException || exception is ObjectDisposedException || exception is OperationCanceledException))
             {
                 throw new OperationCanceledException("The event stream read was canceled.", exception, cancellationToken);
             }
