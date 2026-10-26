@@ -154,6 +154,10 @@ public static class StreamParser
         {
             throw new JsonException("An event payload must contain an event object, not null.");
         }
+        if (string.IsNullOrWhiteSpace(evt.Type))
+        {
+            throw new JsonException("An event payload must contain a nonempty type discriminator.");
+        }
         return true;
     }
 }

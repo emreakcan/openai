@@ -1,6 +1,8 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using Betalgo.Ranul.OpenAI.Contracts.Interfaces;
 using Betalgo.Ranul.OpenAI.Contracts.Types.Streaming;
 using Betalgo.Ranul.OpenAI.Contracts.Types.Streaming.Events;
 using Betalgo.Ranul.OpenAI.Contracts.Types.Streaming.Events.Text;
@@ -54,6 +56,23 @@ data: [DONE]
     {
         using var response = CreateEventStreamResponse("data: null\n\n");
         await Should.ThrowAsync<JsonException>(() => ToListAsync(response.ParseSseStreamAsync<IResponseStreamEvent>()));
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("{\"type\":\"\"}")]
+    [InlineData("{\"type\":\"   \"}")]
+    public async Task ParseSseStreamAsyncRejectsMissingConcreteEventDiscriminators(string payload)
+    {
+        using var response = CreateEventStreamResponse($"data: {payload}\n\n");
+        await Should.ThrowAsync<JsonException>(() => ToListAsync(response.ParseSseStreamAsync<ConcreteEvent>()));
+    }
+
+    public sealed class ConcreteEvent : IStreamEvent
+    {
+        [JsonPropertyName("type")]
+        public string Type { get; set; } = null!;
+        public int SequenceNumber { get; set; }
     }
 
     [Fact]
