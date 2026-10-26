@@ -172,6 +172,15 @@ internal static class HttpClientExtensionsV2
             result = await response.Content.ReadFromJsonAsync<TResponse>(cancellationToken) ?? throw new InvalidOperationException();
         }
 
+        if (!response.IsSuccessStatusCode && result.Error == null)
+        {
+            result.Error = new()
+            {
+                Type = "http_error",
+                Code = ((int)response.StatusCode).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                MessageObject = $"The endpoint returned HTTP {(int)response.StatusCode} ({response.StatusCode}) without an error envelope."
+            };
+        }
         result.HttpStatusCode = response.StatusCode;
         result.HeaderValues = response.ParseHeaders();
 
