@@ -79,7 +79,7 @@ public class StructuredOutputTests
         };
 
         // Act
-        var response = await _fixture.OpenAI.Responses.CreateResponse(request);
+        var response = await _fixture.OpenAI.AsResponses().CreateResponse(request);
 
         // Assert
         AssertExtensions.AssertSuccessfulResponse(response);

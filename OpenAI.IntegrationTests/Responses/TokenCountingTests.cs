@@ -60,7 +60,7 @@ public class TokenCountingTests
         };
 
         // Act
-        var tokenCount = await _fixture.OpenAI.Responses.CountInputTokens(request);
+        var tokenCount = await _fixture.OpenAI.AsResponses().CountInputTokens(request);
 
         // Assert
         Assert.NotNull(tokenCount);
@@ -92,8 +92,8 @@ public class TokenCountingTests
         };
 
         // Act
-        var shortCount = await _fixture.OpenAI.Responses.CountInputTokens(shortRequest);
-        var longCount = await _fixture.OpenAI.Responses.CountInputTokens(longRequest);
+        var shortCount = await _fixture.OpenAI.AsResponses().CountInputTokens(shortRequest);
+        var longCount = await _fixture.OpenAI.AsResponses().CountInputTokens(longRequest);
 
         // Assert
         Assert.NotNull(shortCount);

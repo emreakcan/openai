@@ -47,7 +47,7 @@ public class CrudOperationsTests
     [LiveFact]
     public async Task RetrieveResponse_WithValidId_ReturnsResponse()
     {
-        await using var cleanup = new StoredResponseScope(_fixture.OpenAI.Responses);
+        await using var cleanup = new StoredResponseScope(_fixture.OpenAI.AsResponses());
         // Arrange - First create a response to retrieve
         var createRequest = new CreateResponse
         {
@@ -61,7 +61,7 @@ public class CrudOperationsTests
         AssertExtensions.AssertSuccessfulResponse(created);
 
         // Act - Retrieve the response by ID
-        var retrieved = await _fixture.OpenAI.Responses.RetrieveResponse(created.Id);
+        var retrieved = await _fixture.OpenAI.AsResponses().RetrieveResponse(created.Id);
 
         // Assert
         AssertExtensions.AssertSuccessfulResponse(retrieved);
@@ -94,7 +94,7 @@ public class CrudOperationsTests
     [LiveFact]
     public async Task DeleteResponse_WithValidId_DeletesSuccessfully()
     {
-        await using var cleanup = new StoredResponseScope(_fixture.OpenAI.Responses);
+        await using var cleanup = new StoredResponseScope(_fixture.OpenAI.AsResponses());
         // Arrange - First create a response to delete
         var createRequest = new CreateResponse
         {
@@ -108,7 +108,7 @@ public class CrudOperationsTests
         AssertExtensions.AssertSuccessfulResponse(created);
 
         // Act - Delete the response
-        var deleteResult = await _fixture.OpenAI.Responses.DeleteResponse(created.Id);
+        var deleteResult = await _fixture.OpenAI.AsResponses().DeleteResponse(created.Id);
 
         // Assert
         AssertExtensions.AssertDeleted(deleteResult);
@@ -144,7 +144,7 @@ public class CrudOperationsTests
     [LiveFact]
     public async Task ListInputItems_WithValidResponseId_ReturnsItems()
     {
-        await using var cleanup = new StoredResponseScope(_fixture.OpenAI.Responses);
+        await using var cleanup = new StoredResponseScope(_fixture.OpenAI.AsResponses());
         // Arrange - Create a response first
         var createRequest = new CreateResponse
         {
@@ -158,7 +158,7 @@ public class CrudOperationsTests
         AssertExtensions.AssertSuccessfulResponse(created);
 
         // Act - List input items
-        var inputItems = await _fixture.OpenAI.Responses.ListInputItems(created.Id);
+        var inputItems = await _fixture.OpenAI.AsResponses().ListInputItems(created.Id);
 
         // Assert
         Assert.NotNull(inputItems);

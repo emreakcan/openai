@@ -55,7 +55,7 @@ public class BasicResponseTests
         };
 
         // Act
-        var response = await _fixture.OpenAI.Responses.CreateResponse(request);
+        var response = await _fixture.OpenAI.AsResponses().CreateResponse(request);
 
         // Assert
         AssertExtensions.AssertCompletedStatus(response);
@@ -104,7 +104,7 @@ public class BasicResponseTests
         };
 
         // Act
-        var response = await _fixture.OpenAI.Responses.CreateResponse(request);
+        var response = await _fixture.OpenAI.AsResponses().CreateResponse(request);
 
         // Assert
         AssertExtensions.AssertCompletedStatus(response);
@@ -147,7 +147,7 @@ public class BasicResponseTests
         };
 
         // Act
-        var response = await _fixture.OpenAI.Responses.CreateResponse(request);
+        var response = await _fixture.OpenAI.AsResponses().CreateResponse(request);
 
         // Assert
         AssertExtensions.AssertCompletedStatus(response);

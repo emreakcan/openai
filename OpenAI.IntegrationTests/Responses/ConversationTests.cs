@@ -54,7 +54,7 @@ public class ConversationTests
     [LiveFact]
     public async Task CreateResponse_WithPreviousResponseId_MaintainsContext()
     {
-        await using var cleanup = new StoredResponseScope(_fixture.OpenAI.Responses);
+        await using var cleanup = new StoredResponseScope(_fixture.OpenAI.AsResponses());
         // Arrange - First turn: introduce a fact
         var turn1Request = new CreateResponse
         {
@@ -123,7 +123,7 @@ public class ConversationTests
     [LiveFact]
     public async Task CreateResponse_MultiTurnConversation_RemembersPriorContext()
     {
-        await using var cleanup = new StoredResponseScope(_fixture.OpenAI.Responses);
+        await using var cleanup = new StoredResponseScope(_fixture.OpenAI.AsResponses());
 
         // Turn 1: Establish context
         var turn1 = await cleanup.Create(new CreateResponse

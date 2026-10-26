@@ -60,7 +60,7 @@ public class ErrorHandlingTests
         };
 
         // Act
-        var response = await _fixture.OpenAI.Responses.CreateResponse(request);
+        var response = await _fixture.OpenAI.AsResponses().CreateResponse(request);
 
         // Assert - The response should indicate failure
         Assert.False(response.Successful, "Expected request to fail with invalid model");
@@ -102,7 +102,7 @@ public class ErrorHandlingTests
         var invalidId = "resp_thisdoesnotexist12345678";
 
         // Act
-        var response = await _fixture.OpenAI.Responses.RetrieveResponse(invalidId);
+        var response = await _fixture.OpenAI.AsResponses().RetrieveResponse(invalidId);
 
         // Assert - The response should indicate failure
         Assert.False(response.Successful, "Expected request to fail with invalid ID");

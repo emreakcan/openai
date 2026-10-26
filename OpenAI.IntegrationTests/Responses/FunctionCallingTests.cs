@@ -70,7 +70,7 @@ public class FunctionCallingTests
     [LiveFact]
     public async Task CreateResponse_WithFunctionTool_ReturnsToolCall()
     {
-        await using var cleanup = new StoredResponseScope(_fixture.OpenAI.Responses);
+        await using var cleanup = new StoredResponseScope(_fixture.OpenAI.AsResponses());
         // Arrange
         var weatherTool = new FunctionTool
         {
@@ -153,7 +153,7 @@ public class FunctionCallingTests
     [LiveFact]
     public async Task CreateResponse_WithFunctionOutput_ProcessesResult()
     {
-        await using var cleanup = new StoredResponseScope(_fixture.OpenAI.Responses);
+        await using var cleanup = new StoredResponseScope(_fixture.OpenAI.AsResponses());
         // Arrange - Create the function tool
         var weatherTool = new FunctionTool
         {

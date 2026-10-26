@@ -47,7 +47,7 @@ public class StreamingBasicTests
         var events = new List<IResponseStreamEvent>();
 
         // Act
-        await foreach (var evt in _fixture.OpenAI.Responses.CreateAsStreamAsync(request, timeout.Token))
+        await foreach (var evt in _fixture.OpenAI.AsResponses().CreateAsStreamAsync(request, timeout.Token))
         {
             events.Add(evt);
         }
@@ -79,7 +79,7 @@ public class StreamingBasicTests
         var hasCompleted = false;
 
         // Act
-        await foreach (var evt in _fixture.OpenAI.Responses.CreateAsStreamAsync(request, timeout.Token))
+        await foreach (var evt in _fixture.OpenAI.AsResponses().CreateAsStreamAsync(request, timeout.Token))
         {
             switch (evt)
             {
@@ -122,7 +122,7 @@ public class StreamingBasicTests
         };
 
         // Act
-        var text = await _fixture.OpenAI.Responses.CreateAsStreamAsync(request, timeout.Token).GetTextAsync();
+        var text = await _fixture.OpenAI.AsResponses().CreateAsStreamAsync(request, timeout.Token).GetTextAsync();
 
         // Assert
         Assert.NotNull(text);
@@ -147,7 +147,7 @@ public class StreamingBasicTests
         };
 
         // Act
-        var response = await _fixture.OpenAI.Responses.CreateAsStreamAsync(request, timeout.Token).GetFinalResponseAsync();
+        var response = await _fixture.OpenAI.AsResponses().CreateAsStreamAsync(request, timeout.Token).GetFinalResponseAsync();
 
         // Assert
         Assert.NotNull(response);
@@ -177,7 +177,7 @@ public class StreamingBasicTests
         var textLengths = new List<int>();
 
         // Act
-        await foreach (var (evt, accumulatedText) in _fixture.OpenAI.Responses.CreateAsStreamAsync(request, timeout.Token).WithTextAccumulation())
+        await foreach (var (evt, accumulatedText) in _fixture.OpenAI.AsResponses().CreateAsStreamAsync(request, timeout.Token).WithTextAccumulation())
         {
             textLengths.Add(accumulatedText.Length);
             lastAccumulatedText = accumulatedText;
@@ -212,7 +212,7 @@ public class StreamingBasicTests
         var wasCompleted = false;
 
         // Act
-        await _fixture.OpenAI.Responses.CreateAsStreamAsync(request, timeout.Token)
+        await _fixture.OpenAI.AsResponses().CreateAsStreamAsync(request, timeout.Token)
             .OnTextDelta(delta => textDeltas.Add(delta))
             .OnCompleted(_ => wasCompleted = true)
             .ExecuteAsync();
@@ -241,7 +241,7 @@ public class StreamingBasicTests
         var receivedDeltas = false;
 
         // Act
-        var response = await _fixture.OpenAI.Responses.CreateAsStreamAsync(request, timeout.Token)
+        var response = await _fixture.OpenAI.AsResponses().CreateAsStreamAsync(request, timeout.Token)
             .OnTextDelta(_ => receivedDeltas = true)
             .ExecuteAndGetResponseAsync();
 
@@ -275,7 +275,7 @@ public class StreamingBasicTests
         var events = new List<IResponseStreamEvent>();
 
         // Act
-        await foreach (var evt in _fixture.OpenAI.Responses.CreateAsStreamAsync(request, timeout.Token).TextEventsOnly())
+        await foreach (var evt in _fixture.OpenAI.AsResponses().CreateAsStreamAsync(request, timeout.Token).TextEventsOnly())
         {
             events.Add(evt);
         }
@@ -306,7 +306,7 @@ public class StreamingBasicTests
         var deltas = new List<ResponseTextDeltaEvent>();
 
         // Act
-        await foreach (var delta in _fixture.OpenAI.Responses.CreateAsStreamAsync(request, timeout.Token).OfEventType<ResponseTextDeltaEvent>())
+        await foreach (var delta in _fixture.OpenAI.AsResponses().CreateAsStreamAsync(request, timeout.Token).OfEventType<ResponseTextDeltaEvent>())
         {
             deltas.Add(delta);
         }
@@ -339,7 +339,7 @@ public class StreamingBasicTests
         var events = new List<IResponseStreamEvent>();
 
         // Act
-        await foreach (var evt in _fixture.OpenAI.Responses.CreateAsStreamAsync(request, timeout.Token).LifecycleEventsOnly())
+        await foreach (var evt in _fixture.OpenAI.AsResponses().CreateAsStreamAsync(request, timeout.Token).LifecycleEventsOnly())
         {
             events.Add(evt);
         }

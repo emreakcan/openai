@@ -17,7 +17,7 @@ public class FixtureConfigurationTests
         var handler = new CapturingHandler();
         using var fixture = new OpenAITestFixture(Configuration((setting, "offline-test-key")), handler);
 
-        var response = await fixture.OpenAI.Responses.CreateResponse(new CreateResponse
+        var response = await fixture.OpenAI.AsResponses().CreateResponse(new CreateResponse
         {
             Model = "offline-model",
             Input = "hello"
@@ -36,7 +36,7 @@ public class FixtureConfigurationTests
             ("OPENAI_API_KEY", "standard-key"),
             ("OpenAIServiceOptions:ApiKey", "canonical-key"),
             ("OpenAI:ApiKey", "legacy-key")), handler);
-        await fixture.OpenAI.Responses.CreateResponse(new CreateResponse { Model = "offline-model", Input = "hello" });
+        await fixture.OpenAI.AsResponses().CreateResponse(new CreateResponse { Model = "offline-model", Input = "hello" });
         Assert.Equal("Bearer standard-key", handler.Authorization);
     }
 
@@ -48,7 +48,7 @@ public class FixtureConfigurationTests
             ("OPENAI_API_KEY", " "),
             ("OpenAIServiceOptions:ApiKey", "canonical-key"),
             ("OpenAI:ApiKey", "legacy-key")), handler);
-        await fixture.OpenAI.Responses.CreateResponse(new CreateResponse { Model = "offline-model", Input = "hello" });
+        await fixture.OpenAI.AsResponses().CreateResponse(new CreateResponse { Model = "offline-model", Input = "hello" });
         Assert.Equal("Bearer canonical-key", handler.Authorization);
     }
 

@@ -16,7 +16,7 @@ public class StoredResponseScopeTests
         using var fixture = Fixture(deleted);
         var error = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
         {
-            await using var cleanup = new StoredResponseScope(fixture.OpenAI.Responses);
+            await using var cleanup = new StoredResponseScope(fixture.OpenAI.AsResponses());
             await cleanup.Create(new CreateResponse("offline-model", "hello"));
             throw new InvalidOperationException("simulated assertion failure");
         });
@@ -29,7 +29,7 @@ public class StoredResponseScopeTests
     {
         var deleted = new List<string>();
         using var fixture = Fixture(deleted, failDeletes: true);
-        var cleanup = new StoredResponseScope(fixture.OpenAI.Responses);
+        var cleanup = new StoredResponseScope(fixture.OpenAI.AsResponses());
         await cleanup.Create(new CreateResponse("offline-model", "one"));
         await cleanup.Create(new CreateResponse("offline-model", "two"));
         await Assert.ThrowsAsync<AggregateException>(async () => await cleanup.DisposeAsync());

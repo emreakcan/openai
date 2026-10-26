@@ -11,7 +11,7 @@ using Betalgo.Ranul.OpenAI.Interfaces;
 
 namespace Betalgo.Ranul.OpenAI.Managers;
 
-public partial class OpenAIService : IResponsesService
+public partial class OpenAIService : IResponsesService, IResponsesProvider
 {
     /// <inheritdoc />
     public async Task<Response> CreateResponse(CreateResponse createResponse, CancellationToken cancellationToken = default)

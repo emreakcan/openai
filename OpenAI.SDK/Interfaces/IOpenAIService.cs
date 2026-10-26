@@ -66,11 +66,6 @@ public interface IOpenAIService
     public IBetaService Beta { get; }
 
     /// <summary>
-    ///     Service for interacting with the Responses API.
-    /// </summary>
-    public IResponsesService Responses { get; }
-
-    /// <summary>
     ///     Set default model
     /// </summary>
     /// <param name="modelId"></param>

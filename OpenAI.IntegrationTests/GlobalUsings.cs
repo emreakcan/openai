@@ -2,3 +2,5 @@
 
 global using Xunit;
 
+
+global using Betalgo.Ranul.OpenAI.Extensions;
