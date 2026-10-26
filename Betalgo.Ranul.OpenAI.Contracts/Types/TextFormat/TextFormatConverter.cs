@@ -31,7 +31,14 @@ public class TextFormatConverter : JsonConverter<TextFormat>
     /// <inheritdoc />
     public override void Write(Utf8JsonWriter writer, TextFormat value, JsonSerializerOptions options)
     {
-        JsonSerializer.Serialize(writer, value, value.GetType(), options);
+        if (value is JsonSchemaFormat schema)
+        {
+            JsonSerializer.Serialize(writer, schema, options);
+            return;
+        }
+        writer.WriteStartObject();
+        writer.WriteString("type", value.Type);
+        writer.WriteEndObject();
     }
 }
 

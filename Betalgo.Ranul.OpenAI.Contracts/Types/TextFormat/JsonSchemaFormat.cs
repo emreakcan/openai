@@ -37,7 +37,39 @@ public class JsonSchemaFormat : TextFormat
     /// <summary>
     ///     The JSON schema definition.
     /// </summary>
-    [JsonPropertyName("json_schema")]
+    [JsonIgnore]
     public JsonSchemaDefinition? JsonSchema { get; set; }
+
+    /// <summary>The response format name, serialized directly inside text.format.</summary>
+    [JsonPropertyName("name")]
+    public string? Name
+    {
+        get => JsonSchema?.Name;
+        set => (JsonSchema ??= new()).Name = value!;
+    }
+
+    /// <summary>The JSON schema, serialized directly inside text.format.</summary>
+    [JsonPropertyName("schema")]
+    public Dictionary<string, object>? Schema
+    {
+        get => JsonSchema?.Schema;
+        set => (JsonSchema ??= new()).Schema = value!;
+    }
+
+    /// <summary>An optional description of the response format.</summary>
+    [JsonPropertyName("description")]
+    public string? Description
+    {
+        get => JsonSchema?.Description;
+        set => (JsonSchema ??= new()).Description = value;
+    }
+
+    /// <summary>Whether to enforce strict schema adherence.</summary>
+    [JsonPropertyName("strict")]
+    public bool? Strict
+    {
+        get => JsonSchema?.Strict;
+        set => (JsonSchema ??= new()).Strict = value;
+    }
 }
 
