@@ -16,7 +16,7 @@ public readonly struct PromptCacheRetention(string value) : IEquatable<PromptCac
     /// <summary>
     ///     In-memory caching, with shorter retention.
     /// </summary>
-    public static PromptCacheRetention InMemory { get; } = new("in-memory");
+    public static PromptCacheRetention InMemory { get; } = new("in_memory");
 
     /// <summary>
     ///     Extended prompt caching, which keeps cached prefixes active for longer, up to a maximum of 24 hours.
