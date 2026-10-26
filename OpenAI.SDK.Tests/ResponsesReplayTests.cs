@@ -32,6 +32,22 @@ public class ResponsesReplayTests
     }
 
     [Fact]
+    public void ReplayRetainsAssistantPhaseAndAdditionalMessageMetadata()
+    {
+        var response = JsonSerializer.Deserialize<Response>("""
+            {"output":[{"type":"message","id":"msg_1","role":"assistant","phase":"commentary","status":"completed",
+              "content":[{"type":"output_text","text":"checking","annotations":[]}],"future_message":{"flag":false}}]}
+            """)!;
+        var history = response.ToInputItems();
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(history));
+        Assert.Equal("commentary", json.RootElement[0].GetProperty("phase").GetString());
+        Assert.Equal("msg_1", json.RootElement[0].GetProperty("id").GetString());
+        Assert.False(json.RootElement[0].GetProperty("future_message").GetProperty("flag").GetBoolean());
+        ((OutputMessageItem)response.Output![0]).AdditionalProperties!.Clear();
+        Assert.Contains("future_message", JsonSerializer.Serialize(history));
+    }
+
+    [Fact]
     public void ReplayIsDetachedFromMutableSourceContentAndCollections()
     {
         var text = new OutputTextContent("original");
