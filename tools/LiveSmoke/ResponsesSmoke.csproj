@@ -8,5 +8,6 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Betalgo.Ranul.OpenAI" Version="$(CandidateVersion)" />
+    <PackageReference Include="Betalgo.OpenAI.Utilities" Version="$(CandidateVersion)" />
   </ItemGroup>
 </Project>

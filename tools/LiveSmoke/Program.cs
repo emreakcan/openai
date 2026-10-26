@@ -4,6 +4,8 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using Betalgo.OpenAI.Utilities.FunctionCalling;
 using Betalgo.Ranul.OpenAI;
 using Betalgo.Ranul.OpenAI.Contracts.Requests.Responses;
 using Betalgo.Ranul.OpenAI.Contracts.Types;
@@ -19,13 +21,14 @@ var packageVersion = typeof(OpenAIService).Assembly.GetCustomAttribute<AssemblyI
 var candidateCommit = packageVersion?.Split('+').LastOrDefault();
 var mode = args.Length == 0 ? "--preflight" : args[0];
 var scenario = args.Length < 2 ? "basic" : args[1];
-var key = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
-var model = Environment.GetEnvironmentVariable("OPENAI_TEST_MODEL");
+var key = mode == "--offline" ? null : Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+var model = mode == "--offline" ? null : Environment.GetEnvironmentVariable("OPENAI_TEST_MODEL");
 var report = new Dictionary<string, object?>
 {
     ["timestamp_utc"] = DateTimeOffset.UtcNow,
     ["candidate_commit"] = candidateCommit,
     ["candidate_package"] = packageVersion,
+    ["utilities_package"] = typeof(FunctionCallingHelper).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion,
     ["runtime"] = RuntimeInformation.FrameworkDescription,
     ["os"] = RuntimeInformation.OSDescription,
     ["architecture"] = RuntimeInformation.ProcessArchitecture.ToString(),
@@ -56,10 +59,10 @@ if (mode == "--preflight")
     return 0;
 }
 
-if ((mode != "--offline" && mode != "--live") || !new[] { "basic", "stream", "structured", "function", "context" }.Contains(scenario))
+if ((mode != "--offline" && mode != "--live") || !new[] { "basic", "stream", "structured", "function", "context", "function-generated", "function-generated-net9", "manual-context" }.Contains(scenario))
 {
     report["result"] = "INVALID_ARGUMENTS";
-    report["usage"] = "ResponsesSmoke [--preflight | --offline basic|stream|structured|function|context | --live basic|stream|structured|function|context]";
+    report["usage"] = "ResponsesSmoke [--preflight | --offline basic|stream|structured|function|context|function-generated|function-generated-net9|manual-context | --live basic|stream|structured|function|context|function-generated|function-generated-net9|manual-context]";
     WriteReport();
     return 2;
 }
@@ -74,7 +77,10 @@ if (mode == "--live" && (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteS
 }
 
 var offline = mode == "--offline";
-var metadata = new MetadataHandler(offline ? new FixtureHandler(scenario) : new HttpClientHandler(), scenario is "function" or "context" ? 4 : 1);
+var functionScenario = scenario is "function" or "function-generated" or "function-generated-net9";
+var storedScenario = functionScenario || scenario == "context";
+var twoRequests = storedScenario || scenario == "manual-context";
+var metadata = new MetadataHandler(offline ? new FixtureHandler(scenario) : new HttpClientHandler(), storedScenario ? 4 : twoRequests ? 2 : 1);
 using var http = new HttpClient(metadata) { Timeout = TimeSpan.FromSeconds(60) };
 using var service = new OpenAIService(new OpenAIOptions { ApiKey = offline ? "fixture-only" : key! }, http);
 using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
@@ -160,10 +166,10 @@ try
         Require(json.RootElement.EnumerateObject().Count() == 1, "Unexpected structured properties");
         report["validated_schema"] = "one required integer answer; no additional properties";
     }
-    else if (scenario is "function" or "context")
+    else if (storedScenario)
     {
         request.Store = true;
-        if (scenario == "function")
+        if (functionScenario)
         {
             request.Input = "Call get_test_value with key alpha. After receiving its result, reply with exactly that result.";
             request.Tools = [new FunctionTool
@@ -171,6 +177,14 @@ try
                 Name = "get_test_value", Strict = true,
                 Parameters = """{"type":"object","properties":{"key":{"type":"string","enum":["alpha"]}},"required":["key"],"additionalProperties":false}"""
             }];
+            if (scenario != "function")
+            {
+                request.Input = "Call get_test_value with key alpha, details label fixture, and samples containing only 7. After receiving its result, reply with exactly that result.";
+                request.Tools = [scenario == "function-generated"
+                    ? FunctionCallingHelper.CreateFunctionToolFromType<GeneratedTestValueParameters>("get_test_value", "Read a fixed synthetic test value")
+                    : FunctionCallingHelper.CreateFunctionToolFromTypeNet9<GeneratedTestValueParameters>("get_test_value", "Read a fixed synthetic test value")];
+                report["schema_generator"] = scenario;
+            }
             request.ToolChoice = "required";
         }
         else request.Input = "Remember this code for my next question: BLUE_7319. Reply OK.";
@@ -179,12 +193,17 @@ try
         CheckResponse(first);
         request.PreviousResponseId = first.Id;
         request.Store = true;
-        if (scenario == "function")
+        if (functionScenario)
         {
             var call = first.Output!.OfType<FunctionToolCallItem>().Single();
             Require(call.Name == "get_test_value", "Unexpected function name");
             using var arguments = JsonDocument.Parse(call.Arguments);
             Require(arguments.RootElement.GetProperty("key").GetString() == "alpha", "Unexpected tool arguments");
+            if (scenario != "function")
+            {
+                Require(arguments.RootElement.GetProperty("details").GetProperty("label").GetString() == "fixture", "Generated tool nested arguments mismatch");
+                Require(arguments.RootElement.GetProperty("samples").EnumerateArray().Select(item => item.GetInt32()).SequenceEqual(new[] { 7 }), "Generated tool array arguments mismatch");
+            }
             Require(!string.IsNullOrEmpty(call.CallId), "Missing call correlation ID");
             request.Input = new InputParam([new FunctionCallOutputItemParam(call.CallId, "VALUE_7841")]);
             request.ToolChoice = "none";
@@ -195,10 +214,27 @@ try
         if (!string.IsNullOrEmpty(second.Id)) storedIds.Add(second.Id);
         CheckResponse(second);
         Require(second.PreviousResponseId == first.Id, "Missing response lineage");
-        Require(second.OutputText?.Trim() == (scenario == "function" ? "VALUE_7841" : "BLUE_7319"), "Follow-up result mismatch");
+        Require(second.OutputText?.Trim() == (functionScenario ? "VALUE_7841" : "BLUE_7319"), "Follow-up result mismatch");
         report["follow_up_validated"] = true;
     }
-    Require(metadata.RequestCount == (scenario is "function" or "context" ? 2 : 1), "Unexpected number of requests");
+    else if (scenario == "manual-context")
+    {
+        const string originalPrompt = "Remember this code for my next question: BLUE_7319. Reply OK.";
+        request.Input = originalPrompt;
+        var first = await service.CreateResponse(request, deadline.Token);
+        CheckResponse(first);
+        var history = new List<IInputItem> { new InputMessageItem("user", originalPrompt) };
+        history.AddRange(first.ToInputItems());
+        history.Add(new InputMessageItem("user", "What code did I ask you to remember? Reply with only the code."));
+        request.Input = history;
+        var second = await service.CreateResponse(request, deadline.Token);
+        CheckResponse(second);
+        Require(second.OutputText?.Trim() == "BLUE_7319", "Manual history follow-up mismatch");
+        Require(request.Store == false && request.PreviousResponseId == null, "Manual history must be stateless");
+        report["manual_replay_items"] = history.Count;
+        report["follow_up_validated"] = true;
+    }
+    Require(metadata.RequestCount == (twoRequests ? 2 : 1), "Unexpected number of requests");
     report["result"] = offline ? "OFFLINE_PASS" : "LIVE_PASS";
 }
 catch (Exception error)
@@ -257,6 +293,8 @@ sealed class FixtureHandler(string scenario) : HttpMessageHandler
 {
     const string completed = """{"id":"resp_fixture","object":"response","status":"completed","model":"fixture-model","output":[{"type":"message","id":"msg_fixture","status":"completed","role":"assistant","content":[{"type":"output_text","text":"READY","annotations":[]}]}],"usage":{"input_tokens":5,"output_tokens":1,"total_tokens":6}}""";
     private int posts;
+    private bool FunctionScenario => scenario is "function" or "function-generated" or "function-generated-net9";
+    private bool StoredScenario => FunctionScenario || scenario == "context";
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         if (request.Method == HttpMethod.Delete)
@@ -265,7 +303,7 @@ sealed class FixtureHandler(string scenario) : HttpMessageHandler
         if (request.Method != HttpMethod.Post || request.RequestUri?.AbsolutePath != "/v1/responses")
             throw new InvalidOperationException("Unexpected endpoint");
         using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(cancellationToken));
-        if (body.RootElement.GetProperty("store").GetBoolean() != (scenario is "function" or "context")
+        if (body.RootElement.GetProperty("store").GetBoolean() != StoredScenario
             || body.RootElement.GetProperty("max_output_tokens").GetInt32() != 256
             || body.RootElement.GetProperty("service_tier").GetString() != "default"
             || body.RootElement.GetProperty("reasoning").GetProperty("effort").GetString() != "none")
@@ -279,13 +317,33 @@ sealed class FixtureHandler(string scenario) : HttpMessageHandler
                 || format.TryGetProperty("json_schema", out _)) throw new InvalidOperationException("Invalid schema wire format");
             fixture = completed.Replace("READY", JsonSerializer.Serialize("{\"answer\":7}")[1..^1]);
         }
-        if (scenario == "function" && posts == 1)
+        if (FunctionScenario && posts == 1)
             fixture = """{"id":"resp_fixture","status":"completed","model":"fixture-model","output":[{"type":"function_call","name":"get_test_value","call_id":"call_fixture","arguments":"{\"key\":\"alpha\"}"}],"usage":{"input_tokens":5,"output_tokens":1,"total_tokens":6}}""";
-        if (scenario is "function" or "context" && posts == 2)
+        if (FunctionScenario && scenario != "function")
+        {
+            ValidateGeneratedTool(body.RootElement);
+            if (posts == 1) fixture = JsonSerializer.Serialize(new { id = "resp_fixture", status = "completed", model = "fixture-model", output = new[] { new { type = "function_call", name = "get_test_value", call_id = "call_fixture", arguments = JsonSerializer.Serialize(new { key = "alpha", details = new { label = "fixture" }, samples = new[] { 7 } }) } }, usage = new { input_tokens = 5, output_tokens = 1, total_tokens = 6 } });
+        }
+        if (StoredScenario && posts == 2)
         {
             if (body.RootElement.GetProperty("previous_response_id").GetString() != "resp_fixture") throw new InvalidOperationException("Missing lineage");
-            if (scenario == "function" && body.RootElement.GetProperty("input")[0].GetProperty("call_id").GetString() != "call_fixture") throw new InvalidOperationException("Missing call correlation");
-            fixture = completed.Replace("READY", scenario == "function" ? "VALUE_7841" : "BLUE_7319").Replace("\"status\":", "\"previous_response_id\":\"resp_fixture\",\"status\":");
+            if (FunctionScenario && body.RootElement.GetProperty("input")[0].GetProperty("call_id").GetString() != "call_fixture") throw new InvalidOperationException("Missing call correlation");
+            fixture = completed.Replace("READY", FunctionScenario ? "VALUE_7841" : "BLUE_7319").Replace("\"status\":", "\"previous_response_id\":\"resp_fixture\",\"status\":");
+        }
+        if (scenario == "manual-context")
+        {
+            if (body.RootElement.TryGetProperty("previous_response_id", out _)) throw new InvalidOperationException("Unexpected server-side lineage");
+            if (posts == 1) fixture = completed.Replace("READY", "OK").Replace("\"role\":\"assistant\"", "\"role\":\"assistant\",\"phase\":\"final_answer\",\"future_message\":{\"flag\":true}");
+            else
+            {
+                var input = body.RootElement.GetProperty("input");
+                if (input.GetArrayLength() != 3 || input[0].GetProperty("role").GetString() != "user"
+                    || input[1].GetProperty("id").GetString() != "msg_fixture" || input[1].GetProperty("phase").GetString() != "final_answer"
+                    || !input[1].GetProperty("future_message").GetProperty("flag").GetBoolean()
+                    || input[1].GetProperty("content")[0].GetProperty("text").GetString() != "OK"
+                    || input[2].GetProperty("role").GetString() != "user") throw new InvalidOperationException("Manual replay metadata or order lost");
+                fixture = completed.Replace("READY", "BLUE_7319");
+            }
         }
         var payload = streaming
             ? "data: {\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"msg_fixture\",\"output_index\":0,\"content_index\":0,\"delta\":\"READY\"}\n\n"
@@ -298,4 +356,53 @@ sealed class FixtureHandler(string scenario) : HttpMessageHandler
         response.Headers.Add("x-request-id", "fixture-request");
         return response;
     }
+    private static void ValidateGeneratedTool(JsonElement request)
+    {
+        var tool = request.GetProperty("tools")[0];
+        if (tool.GetProperty("name").GetString() != "get_test_value" || !tool.GetProperty("strict").GetBoolean()
+            || tool.TryGetProperty("function", out _)) throw new InvalidOperationException("Generated function wire shape invalid");
+        var schema = tool.GetProperty("parameters");
+        ValidateStrictSchema(schema);
+        var properties = schema.GetProperty("properties");
+        if (schema.GetProperty("type").GetString() != "object" || properties.GetProperty("key").GetProperty("type").GetString() != "string"
+            || properties.GetProperty("samples").GetProperty("items").GetProperty("type").GetString() != "integer")
+            throw new InvalidOperationException("Generated schema types mismatch");
+    }
+
+    private static void ValidateStrictSchema(JsonElement schema)
+    {
+        if (schema.ValueKind != JsonValueKind.Object) return;
+        if (schema.TryGetProperty("const", out var constant) && constant.ValueKind == JsonValueKind.Null)
+            throw new InvalidOperationException("Spurious const:null schema constraint");
+        if (schema.TryGetProperty("properties", out var properties))
+        {
+            if (schema.GetProperty("additionalProperties").GetBoolean()
+                || !schema.GetProperty("required").EnumerateArray().Select(value => value.GetString()).Order().SequenceEqual(properties.EnumerateObject().Select(property => property.Name).Order()))
+                throw new InvalidOperationException("Generated strict schema object is not closed/fully required");
+        }
+        foreach (var property in schema.EnumerateObject())
+        {
+            if (property.Value.ValueKind == JsonValueKind.Object) ValidateStrictSchema(property.Value);
+            if (property.Value.ValueKind == JsonValueKind.Array)
+                foreach (var child in property.Value.EnumerateArray()) ValidateStrictSchema(child);
+        }
+    }
+
+}
+
+
+sealed class GeneratedTestValueParameters
+{
+    [JsonPropertyName("key")]
+    public string Key { get; set; } = "";
+    [JsonPropertyName("details")]
+    public GeneratedTestValueDetails Details { get; set; } = new();
+    [JsonPropertyName("samples")]
+    public int[] Samples { get; set; } = [];
+}
+
+sealed class GeneratedTestValueDetails
+{
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = "";
 }
