@@ -11,13 +11,13 @@ internal static class HttpClientExtensions
 {
     public static async Task<TResponse> GetReadAsAsync<TResponse>(this HttpClient client, string uri, CancellationToken cancellationToken = default) where TResponse : BaseResponse, new()
     {
-        var response = await client.GetAsync(uri, cancellationToken);
+        using var response = await client.GetAsync(uri, cancellationToken);
         return await HandleResponseContent<TResponse>(response, cancellationToken);
     }
 
     public static async Task<TResponse> PostAndReadAsAsync<TResponse>(this HttpClient client, string uri, object? requestModel, CancellationToken cancellationToken = default) where TResponse : BaseResponse, new()
     {
-        var response = await client.PostAsJsonAsync(uri, requestModel, new JsonSerializerOptions
+        using var response = await client.PostAsJsonAsync(uri, requestModel, new JsonSerializerOptions
         {
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault
         }, cancellationToken);
@@ -108,14 +108,14 @@ internal static class HttpClientExtensions
 
     public static async Task<TResponse> PostFileAndReadAsAsync<TResponse>(this HttpClient client, string uri, HttpContent content, CancellationToken cancellationToken = default) where TResponse : BaseResponse, new()
     {
-        var response = await client.PostAsync(uri, content, cancellationToken);
+        using var response = await client.PostAsync(uri, content, cancellationToken);
         return await HandleResponseContent<TResponse>(response, cancellationToken);
     }
 
     public static async Task<(string? stringResponse, TResponse baseResponse)> PostFileAndReadAsStringAsync<TResponse>(this HttpClient client, string uri, HttpContent content, CancellationToken cancellationToken = default)
         where TResponse : BaseResponse, new()
     {
-        var response = await client.PostAsync(uri, content, cancellationToken);
+        using var response = await client.PostAsync(uri, content, cancellationToken);
         if (response.IsSuccessStatusCode)
         {
             var tResponse = new TResponse
@@ -133,7 +133,7 @@ internal static class HttpClientExtensions
 
     public static async Task<TResponse> DeleteAndReadAsAsync<TResponse>(this HttpClient client, string uri, CancellationToken cancellationToken = default) where TResponse : BaseResponse, new()
     {
-        var response = await client.DeleteAsync(uri, cancellationToken);
+        using var response = await client.DeleteAsync(uri, cancellationToken);
         return await HandleResponseContent<TResponse>(response, cancellationToken);
     }
 
