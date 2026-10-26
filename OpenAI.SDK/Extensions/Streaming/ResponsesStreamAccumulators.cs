@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Text;
+using Betalgo.Ranul.OpenAI.Contracts.Enums.Responses;
 using Betalgo.Ranul.OpenAI.Contracts.Responses.Responses;
 using Betalgo.Ranul.OpenAI.Contracts.Types.Streaming;
 using Betalgo.Ranul.OpenAI.Contracts.Types.Streaming.Events.Lifecycle;
@@ -13,7 +14,7 @@ namespace Betalgo.Ranul.OpenAI.Extensions.Streaming;
 public static class ResponsesStreamAccumulators
 {
     /// <summary>
-    ///     Accumulates all text deltas and returns the final text.
+    ///     Accumulates all text deltas and returns text only after a successful completed response.
     /// </summary>
     /// <param name="events">The stream of events.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -24,20 +25,25 @@ public static class ResponsesStreamAccumulators
     /// Console.WriteLine(text);
     /// </code>
     /// </example>
+    /// <exception cref="ResponseStreamException">The response failed, was incomplete, or emitted an error.</exception>
+    /// <exception cref="EndOfStreamException">The stream ended without successful completion.</exception>
     public static async Task<string> GetTextAsync(
         this IAsyncEnumerable<IResponseStreamEvent> events,
         CancellationToken cancellationToken = default)
     {
         var sb = new StringBuilder();
+        var completed = false;
 
         await foreach (var evt in events.WithCancellation(cancellationToken))
         {
+            completed |= ValidateTextCompletion(evt);
             if (evt is ResponseTextDeltaEvent textDelta)
             {
                 sb.Append(textDelta.Delta);
             }
         }
 
+        RequireCompletion(completed);
         return sb.ToString();
     }
 
@@ -46,7 +52,7 @@ public static class ResponsesStreamAccumulators
     /// </summary>
     /// <param name="events">The stream of events.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The final Response object from the completed event, or null if not found.</returns>
+    /// <returns>The terminal Response object (completed, failed or incomplete), or null if not found.</returns>
     /// <example>
     ///     <code>
     /// var response = await openAi.Responses.CreateAsStreamAsync(request).GetFinalResponseAsync();
@@ -136,25 +142,56 @@ public static class ResponsesStreamAccumulators
     }
 
     /// <summary>
-    ///     Gets all text from text done events (final text content).
+    ///     Gets text from text done events only after a successful completed response.
     /// </summary>
     /// <param name="events">The stream of events.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The final accumulated text from TextDone events.</returns>
+    /// <exception cref="ResponseStreamException">The response failed, was incomplete, or emitted an error.</exception>
+    /// <exception cref="EndOfStreamException">The stream ended without successful completion.</exception>
     public static async Task<string> GetFinalTextAsync(
         this IAsyncEnumerable<IResponseStreamEvent> events,
         CancellationToken cancellationToken = default)
     {
         var sb = new StringBuilder();
+        var completed = false;
 
         await foreach (var evt in events.WithCancellation(cancellationToken))
         {
+            completed |= ValidateTextCompletion(evt);
             if (evt is ResponseTextDoneEvent textDone)
             {
                 sb.Append(textDone.Text);
             }
         }
 
+        RequireCompletion(completed);
         return sb.ToString();
     }
+    private static bool ValidateTextCompletion(IResponseStreamEvent evt)
+    {
+        switch (evt)
+        {
+            case ResponseFailedEvent failed:
+                throw new ResponseStreamException("Response generation failed.", failed.Response);
+            case ResponseIncompleteEvent incomplete:
+                throw new ResponseStreamException("Response generation is incomplete.", incomplete.Response);
+            case ResponseErrorEvent error:
+                throw new ResponseStreamException(error.Message ?? "Response streaming failed.", errorEvent: error);
+            case ResponseCompletedEvent completed:
+                if (completed.Response == null || completed.Response.Error != null ||
+                    completed.Response.Status != ResponsesStatus.Completed)
+                    throw new ResponseStreamException("The terminal response did not complete successfully.", completed.Response);
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static void RequireCompletion(bool completed)
+    {
+        if (!completed)
+            throw new EndOfStreamException("The response stream ended without a completed response. Text may be incomplete.");
+    }
+
 }
