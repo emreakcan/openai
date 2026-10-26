@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Betalgo.Ranul.OpenAI.Contracts.Types.Tools;
@@ -36,7 +37,25 @@ public class CodeInterpreterTool : ITool
     /// <summary>
     ///     The container to use for the code interpreter.
     /// </summary>
-    [JsonPropertyName("container")]
+    [JsonIgnore]
     public string? Container { get; set; }
-}
 
+    /// <summary>Object configuration such as auto; use instead of a string Container ID.</summary>
+    [JsonIgnore]
+    public JsonElement? ContainerConfiguration { get; set; }
+
+    [JsonPropertyName("container")]
+    public object? ContainerCalculated
+    {
+        get => ContainerConfiguration is JsonElement configuration ? configuration : Container;
+        set
+        {
+            if (value is JsonElement element)
+            {
+                if (element.ValueKind == JsonValueKind.String) { Container = element.GetString(); ContainerConfiguration = null; }
+                else { ContainerConfiguration = element.Clone(); Container = null; }
+            }
+            else { Container = value as string; ContainerConfiguration = null; }
+        }
+    }
+}
