@@ -475,9 +475,16 @@ internal class AzureOpenAIEndpointProvider : IOpenAIEndpointProvider
         return $"{Prefix}/responses{AzureVersionQueryString}";
     }
 
+    private static string ResponseIdSegment(string responseId)
+    {
+        if (string.IsNullOrWhiteSpace(responseId) || responseId == "." || responseId == "..")
+            throw new ArgumentException("A response ID must be a non-empty resource ID, not a dot segment.", nameof(responseId));
+        return Uri.EscapeDataString(responseId);
+    }
+
     public string ResponsesRetrieve(string responseId, string? queryParameters)
     {
-        var url = $"{Prefix}/responses/{responseId}{AzureVersionQueryString}";
+        var url = $"{Prefix}/responses/{ResponseIdSegment(responseId)}{AzureVersionQueryString}";
         if (!string.IsNullOrWhiteSpace(queryParameters))
         {
             url = $"{url}&{queryParameters}";
@@ -488,17 +495,17 @@ internal class AzureOpenAIEndpointProvider : IOpenAIEndpointProvider
 
     public string ResponsesDelete(string responseId)
     {
-        return $"{Prefix}/responses/{responseId}{AzureVersionQueryString}";
+        return $"{Prefix}/responses/{ResponseIdSegment(responseId)}{AzureVersionQueryString}";
     }
 
     public string ResponsesCancel(string responseId)
     {
-        return $"{Prefix}/responses/{responseId}/cancel{AzureVersionQueryString}";
+        return $"{Prefix}/responses/{ResponseIdSegment(responseId)}/cancel{AzureVersionQueryString}";
     }
 
     public string ResponsesInputItemsList(string responseId, string? queryParameters)
     {
-        var url = $"{Prefix}/responses/{responseId}/input_items{AzureVersionQueryString}";
+        var url = $"{Prefix}/responses/{ResponseIdSegment(responseId)}/input_items{AzureVersionQueryString}";
         if (!string.IsNullOrWhiteSpace(queryParameters))
         {
             url = $"{url}&{queryParameters}";
