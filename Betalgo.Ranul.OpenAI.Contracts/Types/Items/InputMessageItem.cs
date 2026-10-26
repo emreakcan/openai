@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Betalgo.Ranul.OpenAI.Contracts.Enums.Responses;
 using Betalgo.Ranul.OpenAI.Contracts.Types.Content;
@@ -68,5 +69,17 @@ public class InputMessageItem : IInputItem
     /// </summary>
     [JsonPropertyName("status")]
     public ItemStatus? Status { get; set; }
+    /// <summary>Assistant message phase, retained exactly when replaying history. Omit on user messages.</summary>
+    [JsonPropertyName("phase")]
+    public string? Phase { get; set; }
+
+    /// <summary>Additional message metadata retained across response-history replay.</summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? AdditionalProperties { get; set; }
+
+    /// <summary>The server-assigned message ID, retained when replaying response output.</summary>
+    [JsonPropertyName("id")]
+    public string? Id { get; set; }
+
 }
 
