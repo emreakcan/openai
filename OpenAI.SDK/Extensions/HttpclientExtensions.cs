@@ -1,4 +1,4 @@
-﻿using System.Net.Http.Headers;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -58,7 +58,7 @@ internal static class HttpClientExtensionsV2
     }
 
 
-    public static HttpResponseMessage PostAsStreamAsync(this HttpClient client, string uri, object requestModel, CancellationToken cancellationToken = default)
+    public static HttpResponseMessage PostAsStreamSync(this HttpClient client, string uri, object requestModel, CancellationToken cancellationToken = default)
     {
         var settings = new JsonSerializerOptions
         {
@@ -83,6 +83,27 @@ internal static class HttpClientExtensionsV2
 #else
         return SendRequestPreNet6(client, request, cancellationToken);
 #endif
+    }
+
+    public static async Task<HttpResponseMessage> PostAndGetStreamAsync(this HttpClient client, string uri, object requestModel, CancellationToken cancellationToken = default)
+    {
+        var settings = new JsonSerializerOptions
+        {
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault
+        };
+
+        var content = JsonContent.Create(requestModel, null, settings);
+        var request = CreatePostEventStreamRequest(uri, content);
+
+        return await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+    }
+
+    public static async Task<HttpResponseMessage> GetAndGetStreamAsync(this HttpClient client, string uri, CancellationToken cancellationToken = default)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, uri);
+        request.Headers.Accept.Add(new("text/event-stream"));
+
+        return await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
     }
 
     private static HttpResponseMessage SendRequestPreNet6(HttpClient client, HttpRequestMessage request, CancellationToken cancellationToken)

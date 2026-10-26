@@ -453,4 +453,46 @@ internal class OpenAIEndpointProvider : IOpenAIEndpointProvider
 
         return url;
     }
+
+    public string ResponsesCreate()
+    {
+        return $"{_apiVersion}/responses";
+    }
+
+    public string ResponsesRetrieve(string responseId, string? queryParameters)
+    {
+        var url = $"{_apiVersion}/responses/{responseId}";
+        if (!string.IsNullOrWhiteSpace(queryParameters))
+        {
+            url = $"{url}?{queryParameters}";
+        }
+
+        return url;
+    }
+
+    public string ResponsesDelete(string responseId)
+    {
+        return $"{_apiVersion}/responses/{responseId}";
+    }
+
+    public string ResponsesCancel(string responseId)
+    {
+        return $"{_apiVersion}/responses/{responseId}/cancel";
+    }
+
+    public string ResponsesInputItemsList(string responseId, string? queryParameters)
+    {
+        var url = $"{_apiVersion}/responses/{responseId}/input_items";
+        if (!string.IsNullOrWhiteSpace(queryParameters))
+        {
+            url = $"{url}?{queryParameters}";
+        }
+
+        return url;
+    }
+
+    public string ResponsesInputTokensCount()
+    {
+        return $"{_apiVersion}/responses/input_tokens";
+    }
 }

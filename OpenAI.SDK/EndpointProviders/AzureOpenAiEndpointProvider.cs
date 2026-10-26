@@ -470,6 +470,48 @@ internal class AzureOpenAIEndpointProvider : IOpenAIEndpointProvider
         return $"{DataPlanePrefix}/fine_tuning/jobs{AzureVersionQueryString}";
     }
 
+    public string ResponsesCreate()
+    {
+        return $"{Prefix}/responses{AzureVersionQueryString}";
+    }
+
+    public string ResponsesRetrieve(string responseId, string? queryParameters)
+    {
+        var url = $"{Prefix}/responses/{responseId}{AzureVersionQueryString}";
+        if (!string.IsNullOrWhiteSpace(queryParameters))
+        {
+            url = $"{url}&{queryParameters}";
+        }
+
+        return url;
+    }
+
+    public string ResponsesDelete(string responseId)
+    {
+        return $"{Prefix}/responses/{responseId}{AzureVersionQueryString}";
+    }
+
+    public string ResponsesCancel(string responseId)
+    {
+        return $"{Prefix}/responses/{responseId}/cancel{AzureVersionQueryString}";
+    }
+
+    public string ResponsesInputItemsList(string responseId, string? queryParameters)
+    {
+        var url = $"{Prefix}/responses/{responseId}/input_items{AzureVersionQueryString}";
+        if (!string.IsNullOrWhiteSpace(queryParameters))
+        {
+            url = $"{url}&{queryParameters}";
+        }
+
+        return url;
+    }
+
+    public string ResponsesInputTokensCount()
+    {
+        return $"{Prefix}/responses/input_tokens{AzureVersionQueryString}";
+    }
+
     private string Files()
     {
         return $"{DataPlanePrefix}/files{AzureVersionQueryString}";
