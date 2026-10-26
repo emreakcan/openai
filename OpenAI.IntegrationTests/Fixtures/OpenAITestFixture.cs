@@ -57,7 +57,6 @@ public class OpenAITestFixture : IDisposable
             // Validate and supply the same key rather than validating one section
             // while AddOpenAIService binds a different section.
             options.ApiKey = apiKey;
-            options.UseBeta = true;
         }).ConfigureHttpClient(client => client.Timeout = TimeSpan.FromSeconds(60));
         if (handler != null)
         {

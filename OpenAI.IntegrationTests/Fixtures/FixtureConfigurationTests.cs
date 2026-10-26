@@ -24,6 +24,7 @@ public class FixtureConfigurationTests
         });
 
         Assert.Equal("Bearer offline-test-key", handler.Authorization);
+        Assert.Null(handler.BetaHeader);
         Assert.Equal("resp_offline", response.Id);
     }
 
@@ -101,10 +102,12 @@ public class FixtureConfigurationTests
     private sealed class CapturingHandler : HttpMessageHandler
     {
         public string? Authorization { get; private set; }
+        public string? BetaHeader { get; private set; }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Authorization = request.Headers.Authorization?.ToString();
+            BetaHeader = request.Headers.TryGetValues("OpenAI-Beta", out var values) ? string.Join(",", values) : null;
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent("""{"id":"resp_offline","status":"completed","output":[]}""", Encoding.UTF8, "application/json")
