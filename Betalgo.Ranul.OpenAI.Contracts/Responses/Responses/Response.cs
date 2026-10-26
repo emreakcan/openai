@@ -3,6 +3,8 @@ using Betalgo.Ranul.OpenAI.Contracts.Enums.Responses;
 using Betalgo.Ranul.OpenAI.Contracts.Interfaces;
 using Betalgo.Ranul.OpenAI.Contracts.Responses.Base;
 using Betalgo.Ranul.OpenAI.Contracts.Types;
+using Betalgo.Ranul.OpenAI.Contracts.Types.Content;
+using Betalgo.Ranul.OpenAI.Contracts.Types.Items;
 using Betalgo.Ranul.OpenAI.Contracts.Types.ToolChoice;
 using Betalgo.Ranul.OpenAI.Contracts.Types.Tools;
 
@@ -62,10 +64,22 @@ public class Response : ResponseBase, IDefaultResult<Response>
     public List<IOutputItem>? Output { get; set; }
 
     /// <summary>
-    ///     SDK-only convenience property that contains the aggregated text output from all <c>output_text</c> items.
+    ///     SDK-only convenience property that concatenates all <c>output_text</c> content in output order,
+    ///     without adding separators. Returns an empty string when no text is present.
+    ///     An explicitly assigned or deserialized value takes precedence; assigning null restores aggregation.
     /// </summary>
     [JsonPropertyName("output_text")]
-    public string? OutputText { get; set; }
+    public string? OutputText
+    {
+        get => _outputText ?? string.Concat(Output?
+            .OfType<OutputMessageItem>()
+            .SelectMany(message => message.Content ?? Enumerable.Empty<IContent>())
+            .OfType<OutputTextContent>()
+            .Select(content => content.Text) ?? Enumerable.Empty<string>());
+        set => _outputText = value;
+    }
+
+    private string? _outputText;
 
     /// <summary>
     ///     A system (or developer) message inserted into the model's context.
