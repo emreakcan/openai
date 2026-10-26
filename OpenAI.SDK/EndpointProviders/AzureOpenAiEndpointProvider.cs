@@ -470,9 +470,14 @@ internal class AzureOpenAIEndpointProvider : IOpenAIEndpointProvider
         return $"{DataPlanePrefix}/fine_tuning/jobs{AzureVersionQueryString}";
     }
 
+    // Responses are resource-level operations, unlike deployment-scoped Chat.
+    // Dated previews use /openai; the v1 family uses /openai/v1.
+    private string ResponsesPrefix => _apiVersion is "v1" or "preview" ? $"{ApiPrefix}/v1" : ApiPrefix;
+    private string ResponsesVersionQueryString => _apiVersion == "v1" ? string.Empty : AzureVersionQueryString;
+
     public string ResponsesCreate()
     {
-        return $"{Prefix}/responses{AzureVersionQueryString}";
+        return $"{ResponsesPrefix}/responses{ResponsesVersionQueryString}";
     }
 
     private static string ResponseIdSegment(string responseId)
@@ -484,10 +489,10 @@ internal class AzureOpenAIEndpointProvider : IOpenAIEndpointProvider
 
     public string ResponsesRetrieve(string responseId, string? queryParameters)
     {
-        var url = $"{Prefix}/responses/{ResponseIdSegment(responseId)}{AzureVersionQueryString}";
+        var url = $"{ResponsesPrefix}/responses/{ResponseIdSegment(responseId)}{ResponsesVersionQueryString}";
         if (!string.IsNullOrWhiteSpace(queryParameters))
         {
-            url = $"{url}&{queryParameters}";
+            url = $"{url}{(string.IsNullOrEmpty(ResponsesVersionQueryString) ? "?" : "&")}{queryParameters}";
         }
 
         return url;
@@ -495,20 +500,20 @@ internal class AzureOpenAIEndpointProvider : IOpenAIEndpointProvider
 
     public string ResponsesDelete(string responseId)
     {
-        return $"{Prefix}/responses/{ResponseIdSegment(responseId)}{AzureVersionQueryString}";
+        return $"{ResponsesPrefix}/responses/{ResponseIdSegment(responseId)}{ResponsesVersionQueryString}";
     }
 
     public string ResponsesCancel(string responseId)
     {
-        return $"{Prefix}/responses/{ResponseIdSegment(responseId)}/cancel{AzureVersionQueryString}";
+        return $"{ResponsesPrefix}/responses/{ResponseIdSegment(responseId)}/cancel{ResponsesVersionQueryString}";
     }
 
     public string ResponsesInputItemsList(string responseId, string? queryParameters)
     {
-        var url = $"{Prefix}/responses/{ResponseIdSegment(responseId)}/input_items{AzureVersionQueryString}";
+        var url = $"{ResponsesPrefix}/responses/{ResponseIdSegment(responseId)}/input_items{ResponsesVersionQueryString}";
         if (!string.IsNullOrWhiteSpace(queryParameters))
         {
-            url = $"{url}&{queryParameters}";
+            url = $"{url}{(string.IsNullOrEmpty(ResponsesVersionQueryString) ? "?" : "&")}{queryParameters}";
         }
 
         return url;
@@ -516,7 +521,7 @@ internal class AzureOpenAIEndpointProvider : IOpenAIEndpointProvider
 
     public string ResponsesInputTokensCount()
     {
-        return $"{Prefix}/responses/input_tokens{AzureVersionQueryString}";
+        return $"{ResponsesPrefix}/responses/input_tokens{ResponsesVersionQueryString}";
     }
 
     private string Files()

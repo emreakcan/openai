@@ -33,18 +33,18 @@ public class ResponseIdRouteTests
             options.ProviderType = ProviderType.Azure;
             options.ResourceName = "resource";
             options.DeploymentId = "deployment";
-            options.ApiVersion = "2024-10-21";
+            options.ApiVersion = "2025-04-01-preview";
         }
         using var service = new OpenAIService(options, new HttpClient(handler));
         await service.RetrieveResponse(id);
         await service.DeleteResponse(id);
         await service.CancelResponse(id);
         await service.ListInputItems(id);
-        var prefix = azure ? "/openai/deployments/deployment/responses/" : "/v1/responses/";
+        var prefix = azure ? "/openai/responses/" : "/v1/responses/";
         var segment = Uri.EscapeDataString(id);
         handler.Uris.Select(uri => uri.AbsolutePath).ShouldBe(new[] { prefix + segment, prefix + segment, prefix + segment + "/cancel", prefix + segment + "/input_items" });
         handler.Uris.ShouldAllBe(uri => uri.Fragment == string.Empty);
-        handler.Uris.ShouldAllBe(uri => uri.Query == (azure ? "?api-version=2024-10-21" : string.Empty));
+        handler.Uris.ShouldAllBe(uri => uri.Query == (azure ? "?api-version=2025-04-01-preview" : string.Empty));
     }
 
     [Theory]
