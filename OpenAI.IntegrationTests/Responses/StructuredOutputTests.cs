@@ -59,7 +59,7 @@ public class StructuredOutputTests
     /// var person = JsonSerializer.Deserialize&lt;Person&gt;(response.OutputText);
     /// </code>
     /// </example>
-    [Fact]
+    [LiveFact]
     public async Task CreateResponse_WithJsonSchemaFormat_ReturnsStructuredJson()
     {
         // Arrange

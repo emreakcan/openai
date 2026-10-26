@@ -49,7 +49,7 @@ public class TokenCountingTests
     /// }
     /// </code>
     /// </example>
-    [Fact]
+    [LiveFact]
     public async Task CountInputTokens_WithSimpleText_ReturnsCount()
     {
         // Arrange
@@ -73,7 +73,7 @@ public class TokenCountingTests
     /// <summary>
     /// Demonstrates that longer inputs result in higher token counts.
     /// </summary>
-    [Fact]
+    [LiveFact]
     public async Task CountInputTokens_WithLongerText_ReturnsHigherCount()
     {
         // Arrange

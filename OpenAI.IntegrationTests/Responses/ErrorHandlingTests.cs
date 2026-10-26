@@ -48,7 +48,7 @@ public class ErrorHandlingTests
     /// }
     /// </code>
     /// </example>
-    [Fact]
+    [LiveFact]
     public async Task CreateResponse_WithInvalidModel_ReturnsError()
     {
         // Arrange
@@ -94,7 +94,7 @@ public class ErrorHandlingTests
     /// }
     /// </code>
     /// </example>
-    [Fact]
+    [LiveFact]
     public async Task RetrieveResponse_WithInvalidId_ReturnsNotFound()
     {
         // Arrange

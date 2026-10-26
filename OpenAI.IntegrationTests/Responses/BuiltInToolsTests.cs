@@ -51,7 +51,7 @@ public class BuiltInToolsTests
     /// var searchCalls = response.Output?.OfType&lt;WebSearchToolCallItem&gt;();
     /// </code>
     /// </example>
-    [Fact]
+    [LiveFact]
     public async Task CreateResponse_WithWebSearchTool_ReturnsSearchResults()
     {
         // Arrange
@@ -114,7 +114,7 @@ public class BuiltInToolsTests
     /// }
     /// </code>
     /// </example>
-    [Fact]
+    [LiveFact]
     public async Task CreateResponse_WithCodeInterpreterTool_ExecutesPython()
     {
         // Arrange

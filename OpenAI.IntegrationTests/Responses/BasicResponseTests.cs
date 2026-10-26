@@ -42,7 +42,7 @@ public class BasicResponseTests
     /// Console.WriteLine(response.OutputText);
     /// </code>
     /// </example>
-    [Fact]
+    [LiveFact]
     public async Task CreateResponse_WithSimpleTextInput_ReturnsValidResponse()
     {
         // Arrange
@@ -85,7 +85,7 @@ public class BasicResponseTests
     /// });
     /// </code>
     /// </example>
-    [Fact]
+    [LiveFact]
     public async Task CreateResponse_WithInputMessageItem_ReturnsValidResponse()
     {
         // Arrange
@@ -131,7 +131,7 @@ public class BasicResponseTests
     /// });
     /// </code>
     /// </example>
-    [Fact]
+    [LiveFact]
     public async Task CreateResponse_WithSystemInstructions_FollowsInstructions()
     {
         // Arrange

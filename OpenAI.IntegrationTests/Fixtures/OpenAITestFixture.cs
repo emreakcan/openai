@@ -1,3 +1,4 @@
+using Betalgo.Ranul.OpenAI;
 using Betalgo.Ranul.OpenAI.Extensions;
 using Betalgo.Ranul.OpenAI.Interfaces;
 using Microsoft.Extensions.Configuration;
@@ -10,52 +11,80 @@ namespace OpenAI.IntegrationTests.Fixtures;
 /// This fixture is shared across all tests in a collection to avoid creating multiple HTTP clients.
 /// </summary>
 /// <remarks>
-/// Configuration is loaded from (in order of precedence):
-/// 1. Environment variables (OPENAI__APIKEY)
-/// 2. User secrets (for local development)
-/// 3. appsettings.json
-/// 
-/// To run tests locally, either:
-/// - Set the OPENAI_API_KEY environment variable, or
-/// - Use 'dotnet user-secrets set "OpenAI:ApiKey" "your-key"'
+/// Live tests require OPENAI_RUN_LIVE_TESTS=1 in addition to credentials.
+/// Configuration providers, from lowest to highest precedence: appsettings.json,
+/// appsettings.Development.json, user secrets, environment variables.
+/// The API key is selected from OPENAI_API_KEY, OpenAIServiceOptions:ApiKey,
+/// then the legacy OpenAI:ApiKey setting, using the first nonempty value.
+/// Prefer an environment variable or user secrets; never commit credentials.
 /// </remarks>
 public class OpenAITestFixture : IDisposable
 {
     private readonly ServiceProvider _serviceProvider;
 
-    public OpenAITestFixture()
+    public OpenAITestFixture() : this(LoadConfiguration())
     {
-        var configuration = new ConfigurationBuilder()
-            .SetBasePath(Directory.GetCurrentDirectory())
+    }
+
+    internal OpenAITestFixture(IConfiguration configuration, HttpMessageHandler? handler = null)
+    {
+        var apiKey = new[]
+        {
+            configuration["OPENAI_API_KEY"],
+            configuration[$"{OpenAIOptions.SettingKey}:ApiKey"],
+            configuration["OpenAI:ApiKey"]
+        }.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+        if (apiKey == null)
+        {
+            throw new InvalidOperationException(
+                "OpenAI API key is not configured. Set OPENAI_API_KEY or use " +
+                "dotnet user-secrets set OpenAIServiceOptions:ApiKey <key> --project OpenAI.IntegrationTests.");
+        }
+
+        DefaultModel = FirstNonempty(configuration["OPENAI_TEST_MODEL"], configuration["OpenAI:DefaultModel"]) ?? "gpt-4o-mini";
+        ReasoningModel = FirstNonempty(configuration["OPENAI_TEST_REASONING_MODEL"], configuration["OpenAI:ReasoningModel"]) ?? "o3-mini";
+        var maxOutputTokens = configuration["OPENAI_TEST_MAX_OUTPUT_TOKENS"] ?? "256";
+        if (!int.TryParse(maxOutputTokens, out var limit) || limit < 1 || limit > 4096)
+        {
+            throw new InvalidOperationException("OPENAI_TEST_MAX_OUTPUT_TOKENS must be between 1 and 4096.");
+        }
+        DefaultMaxOutputTokens = limit;
+
+        var services = new ServiceCollection();
+        services.AddSingleton(configuration);
+        var builder = services.AddOpenAIService(options =>
+        {
+            // Validate and supply the same key rather than validating one section
+            // while AddOpenAIService binds a different section.
+            options.ApiKey = apiKey;
+            options.UseBeta = true;
+        }).ConfigureHttpClient(client => client.Timeout = TimeSpan.FromSeconds(60));
+        if (handler != null)
+        {
+            builder.ConfigurePrimaryHttpMessageHandler(() => handler);
+        }
+
+        _serviceProvider = services.BuildServiceProvider();
+        OpenAI = _serviceProvider.GetRequiredService<IOpenAIService>();
+    }
+
+    private static string? FirstNonempty(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+
+    private static IConfiguration LoadConfiguration()
+    {
+        if (!LiveFactAttribute.IsEnabled)
+        {
+            throw new InvalidOperationException("Live integration tests require OPENAI_RUN_LIVE_TESTS=1.");
+        }
+
+        return new ConfigurationBuilder()
+            .SetBasePath(AppContext.BaseDirectory)
             .AddJsonFile("appsettings.json", optional: true)
             .AddJsonFile("appsettings.Development.json", optional: true)
             .AddUserSecrets<OpenAITestFixture>(optional: true)
             .AddEnvironmentVariables()
             .Build();
-
-        var services = new ServiceCollection();
-        services.AddSingleton<IConfiguration>(configuration);
-
-        // Configure OpenAI service with beta features enabled for Responses API
-        services.AddOpenAIService(options =>
-        {
-            options.UseBeta = true;
-        });
-
-        _serviceProvider = services.BuildServiceProvider();
-
-        // Validate API key is configured
-        var apiKey = configuration["OpenAI:ApiKey"];
-        if (string.IsNullOrWhiteSpace(apiKey))
-        {
-            throw new InvalidOperationException(
-                "OpenAI API key is not configured. " +
-                "Set the 'OpenAI:ApiKey' in user secrets or 'OPENAI__APIKEY' environment variable.");
-        }
-
-        OpenAI = _serviceProvider.GetRequiredService<IOpenAIService>();
-        DefaultModel = configuration["OpenAI:DefaultModel"] ?? "gpt-4o-mini";
-        ReasoningModel = configuration["OpenAI:ReasoningModel"] ?? "o3-mini";
     }
 
     /// <summary>
@@ -72,6 +101,12 @@ public class OpenAITestFixture : IDisposable
     /// The reasoning model to use for reasoning tests.
     /// </summary>
     public string ReasoningModel { get; }
+
+    /// <summary>
+    /// Output cap used by streaming tests that previously had no explicit token limit.
+    /// Tests with specific token requirements keep their own limits.
+    /// </summary>
+    public int DefaultMaxOutputTokens { get; }
 
     public void Dispose()
     {

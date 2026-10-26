@@ -51,7 +51,7 @@ public class ConversationTests
     /// // turn2 will know the user's name is Alice
     /// </code>
     /// </example>
-    [Fact]
+    [LiveFact]
     public async Task CreateResponse_WithPreviousResponseId_MaintainsContext()
     {
         // Arrange - First turn: introduce a fact
@@ -122,7 +122,7 @@ public class ConversationTests
     /// });
     /// </code>
     /// </example>
-    [Fact]
+    [LiveFact]
     public async Task CreateResponse_MultiTurnConversation_RemembersPriorContext()
     {
         var responseIds = new List<string>();

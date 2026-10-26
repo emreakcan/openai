@@ -66,7 +66,7 @@ public class FunctionCallingTests
     /// var functionCalls = response.Output?.OfType&lt;FunctionToolCallItem&gt;();
     /// </code>
     /// </example>
-    [Fact]
+    [LiveFact]
     public async Task CreateResponse_WithFunctionTool_ReturnsToolCall()
     {
         // Arrange
@@ -147,7 +147,7 @@ public class FunctionCallingTests
     /// // response2 now contains the model's interpretation of the weather data
     /// </code>
     /// </example>
-    [Fact]
+    [LiveFact]
     public async Task CreateResponse_WithFunctionOutput_ProcessesResult()
     {
         // Arrange - Create the function tool

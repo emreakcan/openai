@@ -50,7 +50,7 @@ public class ReasoningModelTests
     /// Console.WriteLine($"Reasoning tokens used: {reasoningTokens}");
     /// </code>
     /// </example>
-    [Fact]
+    [LiveFact]
     public async Task CreateResponse_WithReasoningModel_ReturnsReasoningTokens()
     {
         // Arrange

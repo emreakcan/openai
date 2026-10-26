@@ -44,7 +44,7 @@ public class CrudOperationsTests
     /// Console.WriteLine($"Status: {retrieved.Status}");
     /// </code>
     /// </example>
-    [Fact]
+    [LiveFact]
     public async Task RetrieveResponse_WithValidId_ReturnsResponse()
     {
         // Arrange - First create a response to retrieve
@@ -90,7 +90,7 @@ public class CrudOperationsTests
     /// Console.WriteLine($"Deleted: {deleted.Deleted}"); // true
     /// </code>
     /// </example>
-    [Fact]
+    [LiveFact]
     public async Task DeleteResponse_WithValidId_DeletesSuccessfully()
     {
         // Arrange - First create a response to delete
@@ -138,7 +138,7 @@ public class CrudOperationsTests
     /// }
     /// </code>
     /// </example>
-    [Fact]
+    [LiveFact]
     public async Task ListInputItems_WithValidResponseId_ReturnsItems()
     {
         // Arrange - Create a response first
