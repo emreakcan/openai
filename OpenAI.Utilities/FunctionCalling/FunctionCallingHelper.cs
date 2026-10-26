@@ -1,5 +1,7 @@
 ﻿using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 #if NET9_0_OR_GREATER
 using System.Text.Json.Schema;
 #endif
@@ -362,7 +364,7 @@ public static class FunctionCallingHelper
         {
             Name = name,
             Description = description,
-            Parameters = ConvertToDictionary(parameters),
+            Parameters = ConvertToDictionary(parameters, strict),
             Strict = strict
         };
     }
@@ -492,8 +494,11 @@ public static class FunctionCallingHelper
         bool? strict = true,
         JsonSerializerOptions? options = null)
     {
-        options ??= new JsonSerializerOptions();
-        var schemaNode = options.GetJsonSchemaAsNode(typeof(TParams));
+        // Clone caller options so schema export cannot freeze or mutate them.
+        var schemaOptions = options == null ? new JsonSerializerOptions(JsonSerializerOptions.Default) : new JsonSerializerOptions(options);
+        schemaOptions.MakeReadOnly(populateMissingResolver: true);
+        var schemaNode = schemaOptions.GetJsonSchemaAsNode(typeof(TParams));
+        if (strict == true) NormalizeStrictParameters(schemaNode);
         var schemaJson = schemaNode.ToJsonString();
 
         return new FunctionTool
@@ -517,7 +522,7 @@ public static class FunctionCallingHelper
         {
             Name = funcDef.Name,
             Description = funcDef.Description,
-            Parameters = ConvertToDictionary(funcDef.Parameters),
+            Parameters = ConvertToDictionary(funcDef.Parameters, funcDef.Strict),
             Strict = funcDef.Strict
         };
     }
@@ -535,11 +540,51 @@ public static class FunctionCallingHelper
             .ToList();
     }
 
-    private static FunctionParameters? ConvertToDictionary(PropertyDefinition? definition)
+    private static FunctionParameters? ConvertToDictionary(PropertyDefinition? definition, bool? strict = null)
     {
         if (definition == null) return null;
-        var json = JsonSerializer.Serialize(definition);
-        return FunctionParameters.FromJson(json);
+        // Raw FunctionParameters bypass the request serializer. Omit absent schema
+        // keywords here: const:null and properties:null are actual constraints,
+        // not harmless missing values once embedded in raw JSON.
+        var schema = JsonSerializer.SerializeToNode(definition, new JsonSerializerOptions
+        {
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        })!;
+        if (strict == true) NormalizeStrictParameters(schema);
+        return FunctionParameters.FromJson(schema.ToJsonString());
+    }
+
+    private static void NormalizeStrictParameters(JsonNode schema)
+    {
+        NormalizeStrictSchema(schema);
+        // The function argument document itself is an object, even when the CLR
+        // reference type exported by System.Text.Json allows a null root value.
+        if (schema is JsonObject root && root["type"] is JsonArray types && types.Any(t => t?.ToString() == "object"))
+            root["type"] = "object";
+    }
+
+    private static void NormalizeStrictSchema(JsonNode? schema)
+    {
+        if (schema is not JsonObject obj) return;
+        if (obj["properties"] is JsonObject properties)
+        {
+            obj["additionalProperties"] = false;
+            var required = new JsonArray();
+            foreach (var property in properties)
+            {
+                required.Add(property.Key);
+                NormalizeStrictSchema(property.Value);
+            }
+            obj["required"] = required;
+        }
+        // Visit schema locations, never arbitrary default/const/example values.
+        foreach (var key in new[] { "$defs", "definitions" })
+            if (obj[key] is JsonObject definitions)
+                foreach (var definition in definitions) NormalizeStrictSchema(definition.Value);
+        foreach (var key in new[] { "items", "not", "if", "then", "else" }) NormalizeStrictSchema(obj[key]);
+        foreach (var key in new[] { "anyOf", "oneOf", "allOf", "prefixItems" })
+            if (obj[key] is JsonArray alternatives)
+                foreach (var alternative in alternatives) NormalizeStrictSchema(alternative);
     }
 
     #endregion
